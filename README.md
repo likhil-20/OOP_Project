@@ -1,3 +1,3 @@
 # OOP_Project
 
-<u>Frameworks Used:</u> React, Springboot and PostgreSQL
+**Frameworks Used:** React, Spring Boot and PostgreSQL
