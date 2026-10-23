@@ -1,0 +1,697 @@
+import React, { useState, useEffect } from 'react';
+import axios from 'axios';
+
+const API = 'http://localhost:8080/api';
+
+function App() {
+  const [user, setUser] = useState(null);
+  const [emailInput, setEmailInput] = useState('');
+  const [passwordInput, setPasswordInput] = useState('');
+
+  const [incidents, setIncidents] = useState([]);
+  const [services, setServices] = useState([]);
+  const [categories, setCategories] = useState([]);
+  const [notifications, setNotifications] = useState([]);
+  const [analytics, setAnalytics] = useState(null);
+  const [slaViolations, setSlaViolations] = useState([]);
+
+  // Audit Trail State
+  const [auditModalOpen, setAuditModalOpen] = useState(false);
+  const [currentAuditLogs, setCurrentAuditLogs] = useState([]);
+  const [currentAuditIncidentId, setCurrentAuditIncidentId] = useState(null);
+
+  // Admin Management state
+  const [adminTab, setAdminTab] = useState('users');
+  const [allUsers, setAllUsers] = useState([]);
+  const [slaPolicies, setSlaPolicies] = useState([]);
+  const [configList, setConfigList] = useState([]);
+  const [newCategoryName, setNewCategoryName] = useState('');
+
+  // New Incident Form State
+  const [category, setCategory] = useState('');
+  const [serviceId, setServiceId] = useState('');
+  const [impact, setImpact] = useState('HIGH');
+  const [urgency, setUrgency] = useState('HIGH');
+  const [description, setDescription] = useState('');
+
+  // Search & Filter state
+  const [searchQuery, setSearchQuery] = useState('');
+  const [filterPriority, setFilterPriority] = useState('ALL');
+  const [filterStatus, setFilterStatus] = useState('ALL');
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await axios.post(`${API}/auth/login`, {
+        email: emailInput,
+        password: passwordInput
+      });
+      let u = res.data;
+      setUser(u);
+      loadDashboardData(u);
+    } catch (err) {
+      alert(err.response?.data?.error || "Login failed. Please check credentials or approval status.");
+    }
+  };
+
+  const loadDashboardData = async (u) => {
+    try {
+      const sRes = await axios.get(`${API}/services`);
+      setServices(sRes.data);
+      if (sRes.data.length > 0 && !serviceId) setServiceId(sRes.data[0].id);
+
+      const catRes = await axios.get(`${API}/categories`);
+      setCategories(catRes.data);
+      if (catRes.data.length > 0 && !category) setCategory(catRes.data[0].name);
+      
+      const incRes = await axios.get(`${API}/incidents?email=${u.email}&role=${u.role}`);
+      setIncidents(incRes.data);
+      
+      const nRes = await axios.get(`${API}/notifications?email=${u.email}`);
+      setNotifications(nRes.data);
+
+      if (u.role === 'ADMINISTRATOR') {
+        const anRes = await axios.get(`${API}/analytics`);
+        setAnalytics(anRes.data);
+        const slaRes = await axios.get(`${API}/admin/sla-violations`);
+        setSlaViolations(slaRes.data);
+        const usrRes = await axios.get(`${API}/admin/users`);
+        setAllUsers(usrRes.data);
+        const slaPolRes = await axios.get(`${API}/admin/sla`);
+        setSlaPolicies(slaPolRes.data);
+        const cfgRes = await axios.get(`${API}/admin/config`);
+        setConfigList(cfgRes.data);
+      }
+    } catch (e) {
+      console.error(e);
+    }
+  };
+
+  useEffect(() => {
+    if (!user) return;
+    const interval = setInterval(() => loadDashboardData(user), 10000);
+    return () => clearInterval(interval);
+  }, [user]);
+
+  const handleCreateIncident = async (e) => {
+    e.preventDefault();
+    if (!serviceId) return alert("Please select an affected IT service.");
+    try {
+      await axios.post(`${API}/incidents`, { email: user.email, category, serviceId, impact, urgency, description });
+      setDescription('');
+      loadDashboardData(user);
+      alert("Incident submitted successfully!");
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to create incident.");
+    }
+  };
+
+  const handleStatusUpdate = async (id, newStatus, extra = {}) => {
+    try {
+      await axios.put(`${API}/incidents/${id}/status`, { email: user.email, status: newStatus, ...extra });
+      loadDashboardData(user);
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to update incident state.");
+    }
+  };
+
+  const fetchAuditLogs = async (incidentId) => {
+    try {
+      const res = await axios.get(`${API}/audit/${incidentId}`);
+      setCurrentAuditLogs(res.data);
+      setCurrentAuditIncidentId(incidentId);
+      setAuditModalOpen(true);
+    } catch (e) {
+      alert("Failed to fetch audit trail");
+    }
+  };
+
+  const handleApproveUser = async (id) => {
+    await axios.put(`${API}/admin/users/${id}/approve`);
+    loadDashboardData(user);
+  };
+
+  const handleDeleteUser = async (id) => {
+    if (window.confirm("Are you sure you want to delete this user?")) {
+      await axios.delete(`${API}/admin/users/${id}`);
+      loadDashboardData(user);
+    }
+  };
+
+  const handleAddCategory = async (e) => {
+    e.preventDefault();
+    if (!newCategoryName.trim()) return;
+    try {
+      await axios.post(`${API}/admin/categories`, { name: newCategoryName, description: "Custom introduced category" });
+      setNewCategoryName('');
+      loadDashboardData(user);
+      alert("Category added successfully!");
+    } catch (err) {
+      alert("Failed to add category (may already exist).");
+    }
+  };
+
+  const handleDeleteCategory = async (id) => {
+    if (window.confirm("Remove this category?")) {
+      await axios.delete(`${API}/admin/categories/${id}`);
+      loadDashboardData(user);
+    }
+  };
+
+  const markNotifRead = async (id) => {
+    await axios.put(`${API}/notifications/${id}/read`);
+    loadDashboardData(user);
+  };
+
+  const filteredIncidents = incidents.filter(inc => {
+    const matchesSearch = inc.description.toLowerCase().includes(searchQuery.toLowerCase()) || inc.id.toString().includes(searchQuery);
+    const matchesPriority = filterPriority === 'ALL' || inc.priority === filterPriority;
+    const matchesStatus = filterStatus === 'ALL' || inc.status === filterStatus;
+    return matchesSearch && matchesPriority && matchesStatus;
+  });
+
+  return (
+    <div style={{ fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', background: '#f4f7f9', minHeight: '100vh', color: '#1e293b' }}>
+      <style>{`
+        .dashboard-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); margin-bottom: 24px; }
+        .btn { padding: 8px 16px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; }
+        .btn-primary { background: #4f46e5; color: white; }
+        .btn-primary:hover { background: #4338ca; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2); }
+        .btn-success { background: #10b981; color: white; }
+        .btn-success:hover { background: #059669; }
+        .btn-danger { background: #ef4444; color: white; }
+        .btn-danger:hover { background: #dc2626; }
+        .btn-warning { background: #f59e0b; color: white; }
+        .btn-warning:hover { background: #d97706; }
+        .btn-secondary { background: #f1f5f9; color: #475569; }
+        .btn-secondary:hover { background: #e2e8f0; color: #1e293b; }
+        .input-field { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px; transition: all 0.2s; box-sizing: border-box; background: #f8fafc; }
+        .input-field:focus { outline: none; border-color: #4f46e5; background: #fff; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
+        .table-custom { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
+        .table-custom th { background: #f8fafc; color: #64748b; padding: 14px; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0; text-align: left; }
+        .table-custom td { padding: 14px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: top; }
+        .table-custom tr:hover td { background: #f8fafc; }
+        .pill { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; display: inline-block; white-space: nowrap; }
+        .pill-P1 { background: #fee2e2; color: #dc2626; }
+        .pill-P2 { background: #fef3c7; color: #d97706; }
+        .pill-P3 { background: #e0e7ff; color: #4338ca; }
+        .pill-P4 { background: #f1f5f9; color: #475569; }
+        .pill-status { background: #f3f4f6; color: #475569; border: 1px solid #e2e8f0; font-weight: 600; }
+        .nav-tab { background: transparent; color: #64748b; border: none; padding: 12px 20px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; font-size: 14px; }
+        .nav-tab.active { color: #4f46e5; border-bottom: 2px solid #4f46e5; }
+        .nav-tab:hover:not(.active) { color: #1e293b; background: #f8fafc; border-radius: 8px 8px 0 0; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); text-align: center; border-bottom: 4px solid transparent; }
+      `}</style>
+
+      {/* Top Header */}
+      <header style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%)', color: 'white', padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{ background: 'rgba(255,255,255,0.2)', padding: '6px 12px', borderRadius: '8px', fontWeight: 'bold', fontSize: '15px', backdropFilter: 'blur(4px)' }}>I-ITSM</div>
+          <h1 style={{ fontSize: '20px', fontWeight: '600', margin: 0, letterSpacing: '-0.01em' }}>Intelligent Service Desk</h1>
+        </div>
+        {user && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '14px' }}>
+            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '6px 16px', borderRadius: '999px' }}>
+              Signed in as <strong>{user.name}</strong> <span style={{ opacity: 0.8, fontSize: '12px', marginLeft: '6px' }}>({user.role})</span>
+            </div>
+            <button onClick={() => setUser(null)} className="btn" style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}>Sign Out</button>
+          </div>
+        )}
+      </header>
+
+      {!user ? (
+        <div className="dashboard-card" style={{ maxWidth: '420px', margin: '80px auto', padding: '40px' }}>
+          <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px', textAlign: 'center', color: '#0f172a' }}>
+            Welcome Back
+          </h2>
+          <p style={{ fontSize: '14px', color: '#64748b', textAlign: 'center', marginBottom: '32px' }}>
+            Sign in to access your enterprise portal
+          </p>
+
+          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#334155' }}>Email Address</label>
+              <input type="email" required className="input-field" value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="admin@gmail.com" />
+            </div>
+            <div>
+              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#334155' }}>Password</label>
+              <input type="password" required className="input-field" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="••••••••" />
+            </div>
+            <button type="submit" className="btn btn-primary" style={{ padding: '12px', fontSize: '15px', marginTop: '8px' }}>Sign In</button>
+          </form>
+        </div>
+      ) : (
+        <div style={{ maxWidth: '1400px', margin: '32px auto', padding: '0 24px', display: 'grid', gridTemplateColumns: '1fr 340px', gap: '32px' }}>
+          <div>
+            {/* EMPLOYEE PORTAL */}
+            {user.role === 'EMPLOYEE' && (
+              <div>
+                <div className="dashboard-card">
+                  <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', color: '#0f172a', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>Report New IT Incident</h2>
+                  <form onSubmit={handleCreateIncident} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Category</label>
+                      <select className="input-field" value={category} onChange={e => setCategory(e.target.value)}>
+                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Affected Service</label>
+                      <select className="input-field" value={serviceId} onChange={e => setServiceId(e.target.value)}>
+                        {services.map(s => <option key={s.id} value={s.id}>{s.serviceName} ({s.businessCriticality})</option>)}
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Impact</label>
+                      <select className="input-field" value={impact} onChange={e => setImpact(e.target.value)}>
+                        <option value="HIGH">High</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="LOW">Low</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Urgency</label>
+                      <select className="input-field" value={urgency} onChange={e => setUrgency(e.target.value)}>
+                        <option value="HIGH">High</option>
+                        <option value="MEDIUM">Medium</option>
+                        <option value="LOW">Low</option>
+                      </select>
+                    </div>
+                    <div style={{ gridColumn: 'span 2' }}>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Description</label>
+                      <textarea className="input-field" required value={description} onChange={e => setDescription(e.target.value)} rows="3" placeholder="Provide clear details regarding the disruption..."></textarea>
+                    </div>
+                    <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end' }}>
+                      <button type="submit" className="btn btn-primary" style={{ padding: '10px 24px' }}>Submit Ticket</button>
+                    </div>
+                  </form>
+                </div>
+
+                <div className="dashboard-card" style={{ display: 'flex', gap: '16px', alignItems: 'center', background: '#fff' }}>
+                  <span style={{ fontWeight: '600', color: '#64748b', fontSize: '14px' }}>Filters:</span>
+                  <input type="text" className="input-field" placeholder="Search keywords or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ flex: 1 }} />
+                  <select className="input-field" value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{ width: '160px' }}>
+                    <option value="ALL">All Priorities</option>
+                    <option value="P1">P1 - Critical</option>
+                    <option value="P2">P2 - High</option>
+                    <option value="P3">P3 - Medium</option>
+                    <option value="P4">P4 - Low</option>
+                  </select>
+                  <select className="input-field" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ width: '160px' }}>
+                    <option value="ALL">All Statuses</option>
+                    <option value="ASSIGNED">Assigned</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="RESOLVED">Resolved</option>
+                    <option value="CLOSED">Closed</option>
+                  </select>
+                </div>
+
+                <div className="dashboard-card">
+                  <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', color: '#0f172a' }}>My Incident History</h2>
+                  <div style={{ overflowX: 'auto' }}>
+                    <table className="table-custom">
+                      <thead>
+                        <tr>
+                          <th>ID</th>
+                          <th>Description</th>
+                          <th>Priority</th>
+                          <th>Status</th>
+                          <th>Resolution Details</th>
+                          <th>Actions</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {filteredIncidents.map(inc => (
+                          <tr key={inc.id}>
+                            <td style={{ fontWeight: '600' }}>#{inc.id} {inc.isDuplicate && <span className="pill" style={{ background: '#fee2e2', color: '#dc2626', marginLeft: '6px' }}>Duplicate</span>}</td>
+                            <td>{inc.description}</td>
+                            <td><span className={`pill pill-${inc.priority}`}>{inc.priority}</span></td>
+                            <td><span className="pill pill-status">{inc.status}</span></td>
+                            <td style={{ fontSize: '13px' }}>
+                              {inc.resolutionDetails && <div style={{ background: '#f0fdf4', color: '#166534', padding: '6px 10px', borderRadius: '6px', border: '1px solid #bbf7d0' }}><strong>Resolved:</strong> {inc.resolutionDetails}</div>}
+                              {inc.techRequestInfo && <div style={{ background: '#fffbeb', color: '#b45309', padding: '6px 10px', borderRadius: '6px', marginTop: '6px', border: '1px solid #fde68a' }}><strong>Info Requested:</strong> {inc.techRequestInfo}</div>}
+                            </td>
+                            <td>
+                              <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                                {inc.techRequestInfo && !inc.additionalInfo && (
+                                  <button onClick={() => {
+                                    const info = prompt("Provide additional information requested by technician:");
+                                    if (info) handleStatusUpdate(inc.id, inc.status, { additionalInfo: info });
+                                  }} className="btn btn-primary">Respond</button>
+                                )}
+                                {inc.status === 'RESOLVED' && !inc.feedbackRating && (
+                                  <button onClick={() => {
+                                    const rating = prompt("Rate resolution quality (1 to 5 stars):");
+                                    const comments = prompt("Optional feedback comments:");
+                                    if (rating) handleStatusUpdate(inc.id, 'VERIFIED', { feedbackRating: rating, feedbackComments: comments });
+                                  }} className="btn btn-success">Verify & Rate</button>
+                                )}
+                                <button onClick={() => fetchAuditLogs(inc.id)} className="btn btn-secondary">History</button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                        {filteredIncidents.length === 0 && (
+                          <tr><td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No incidents found.</td></tr>
+                        )}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* TECHNICIAN PORTAL */}
+            {user.role === 'TECHNICIAN' && (
+              <div className="dashboard-card">
+                <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', color: '#0f172a' }}>Assigned Incidents & Investigation</h2>
+                <div style={{ overflowX: 'auto' }}>
+                  <table className="table-custom">
+                    <thead>
+                      <tr>
+                        <th>ID</th>
+                        <th>Description</th>
+                        <th>Priority</th>
+                        <th>Status</th>
+                        <th>Actions & Investigation</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {incidents.filter(inc => inc.status !== 'CLOSED').map(inc => (
+                        <tr key={inc.id}>
+                          <td style={{ fontWeight: '600' }}>#{inc.id}</td>
+                          <td>
+                            {inc.description}
+                            {inc.additionalInfo && <div style={{ background: '#f0fdf4', color: '#166534', padding: '6px 10px', borderRadius: '6px', marginTop: '8px', fontSize: '12px', border: '1px solid #bbf7d0' }}><strong>Employee Reply:</strong> {inc.additionalInfo}</div>}
+                          </td>
+                          <td><span className={`pill pill-${inc.priority}`}>{inc.priority}</span></td>
+                          <td><span className="pill pill-status">{inc.status}</span></td>
+                          <td>
+                            <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                              {inc.status === 'ASSIGNED' && (
+                                <button onClick={() => handleStatusUpdate(inc.id, 'ACKNOWLEDGED')} className="btn btn-primary">Acknowledge</button>
+                              )}
+                              {inc.status === 'ACKNOWLEDGED' && (
+                                <button onClick={() => handleStatusUpdate(inc.id, 'IN_PROGRESS')} className="btn btn-warning">Start Progress</button>
+                              )}
+                              <button onClick={() => {
+                                const notes = prompt("Enter investigation notes:", inc.investigationNotes || "");
+                                if (notes) handleStatusUpdate(inc.id, inc.status, { investigationNotes: notes });
+                              }} className="btn btn-secondary">Notes</button>
+                              
+                              {inc.status !== 'RESOLVED' && inc.status !== 'NEW' && inc.status !== 'CLASSIFIED' && (
+                                <>
+                                  <button onClick={() => {
+                                    const req = prompt("Request additional info from employee:");
+                                    if (req) handleStatusUpdate(inc.id, inc.status, { techRequestInfo: req });
+                                  }} className="btn" style={{ background: '#f59e0b', color: 'white' }}>Req Info</button>
+                                  <button onClick={() => {
+                                    const res = prompt("Enter resolution details:");
+                                    if (res) handleStatusUpdate(inc.id, 'RESOLVED', { resolutionDetails: res });
+                                  }} className="btn btn-success">Resolve</button>
+                                </>
+                              )}
+                              <button onClick={() => fetchAuditLogs(inc.id)} className="btn btn-secondary">History</button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                      {incidents.filter(inc => inc.status !== 'CLOSED').length === 0 && (
+                        <tr><td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No active assignments.</td></tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            )}
+
+            {/* ADMINISTRATOR PORTAL */}
+            {user.role === 'ADMINISTRATOR' && (
+              <div>
+                {analytics && (
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '24px' }}>
+                    <div className="stat-card" style={{ borderBottomColor: '#4f46e5' }}>
+                      <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Total Tickets</div>
+                      <div style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', marginTop: '8px' }}>{analytics.totalIncidents}</div>
+                    </div>
+                    <div className="stat-card" style={{ borderBottomColor: '#f59e0b' }}>
+                      <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Open Tickets</div>
+                      <div style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', marginTop: '8px' }}>{analytics.openIncidents}</div>
+                    </div>
+                    <div className="stat-card" style={{ borderBottomColor: '#ef4444' }}>
+                      <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Critical (P1)</div>
+                      <div style={{ fontSize: '28px', fontWeight: '700', color: '#ef4444', marginTop: '8px' }}>{analytics.criticalIncidents}</div>
+                    </div>
+                    <div className="stat-card" style={{ borderBottomColor: '#10b981' }}>
+                      <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Resolved</div>
+                      <div style={{ fontSize: '28px', fontWeight: '700', color: '#10b981', marginTop: '8px' }}>{analytics.resolvedIncidents}</div>
+                    </div>
+                    <div className="stat-card" style={{ borderBottomColor: '#8b5cf6' }}>
+                      <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>SLA Breaches</div>
+                      <div style={{ fontSize: '28px', fontWeight: '700', color: '#8b5cf6', marginTop: '8px' }}>{analytics.slaViolations}</div>
+                    </div>
+                  </div>
+                )}
+
+                <div className="dashboard-card" style={{ padding: '0', overflow: 'hidden' }}>
+                  <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                    <button onClick={() => setAdminTab('users')} className={`nav-tab ${adminTab === 'users' ? 'active' : ''}`}>Users</button>
+                    <button onClick={() => setAdminTab('categories')} className={`nav-tab ${adminTab === 'categories' ? 'active' : ''}`}>Categories</button>
+                    <button onClick={() => setAdminTab('services')} className={`nav-tab ${adminTab === 'services' ? 'active' : ''}`}>IT Services</button>
+                    <button onClick={() => setAdminTab('tickets')} className={`nav-tab ${adminTab === 'tickets' ? 'active' : ''}`}>Governance</button>
+                    <button onClick={() => setAdminTab('settings')} className={`nav-tab ${adminTab === 'settings' ? 'active' : ''}`}>Settings</button>
+                    <button onClick={() => setAdminTab('violations')} className={`nav-tab ${adminTab === 'violations' ? 'active' : ''}`}>SLA</button>
+                  </div>
+
+                  <div style={{ padding: '24px' }}>
+                    {adminTab === 'users' && (
+                      <div>
+                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Enterprise Directory</h3>
+                        <table className="table-custom">
+                          <thead>
+                            <tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+                          </thead>
+                          <tbody>
+                            {allUsers.map(u => (
+                              <tr key={u.id}>
+                                <td>#{u.id}</td>
+                                <td style={{ fontWeight: '600' }}>{u.name}</td>
+                                <td>{u.email}</td>
+                                <td><span className="pill pill-status">{u.role}</span></td>
+                                <td>
+                                  {u.approved ? <span className="pill" style={{ background: '#dcfce7', color: '#166534' }}>Approved</span> : <span className="pill" style={{ background: '#fef3c7', color: '#b45309' }}>Pending</span>}
+                                </td>
+                                <td>
+                                  <div style={{ display: 'flex', gap: '8px' }}>
+                                    {!u.approved && <button onClick={() => handleApproveUser(u.id)} className="btn btn-success">Approve</button>}
+                                    <button onClick={() => handleDeleteUser(u.id)} className="btn btn-danger">Delete</button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {adminTab === 'categories' && (
+                      <div>
+                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Category Management</h3>
+                        <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
+                          <input type="text" className="input-field" placeholder="New category name (e.g. Cloud)..." value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} style={{ maxWidth: '300px' }} />
+                          <button type="submit" className="btn btn-primary">Add Category</button>
+                        </form>
+                        <table className="table-custom">
+                          <thead>
+                            <tr><th>ID</th><th>Category</th><th>Description</th><th>Action</th></tr>
+                          </thead>
+                          <tbody>
+                            {categories.map(c => (
+                              <tr key={c.id}>
+                                <td>#{c.id}</td>
+                                <td style={{ fontWeight: '600' }}>{c.name}</td>
+                                <td style={{ color: '#64748b' }}>{c.description}</td>
+                                <td><button onClick={() => handleDeleteCategory(c.id)} className="btn btn-danger">Remove</button></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {adminTab === 'services' && (
+                      <div>
+                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Managed Services</h3>
+                        <table className="table-custom">
+                          <thead>
+                            <tr><th>ID</th><th>Service Name</th><th>Criticality</th><th>Description</th></tr>
+                          </thead>
+                          <tbody>
+                            {services.map(s => (
+                              <tr key={s.id}>
+                                <td>#{s.id}</td>
+                                <td style={{ fontWeight: '600' }}>{s.serviceName}</td>
+                                <td><span className="pill pill-status">{s.businessCriticality}</span></td>
+                                <td style={{ color: '#64748b' }}>{s.description}</td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {adminTab === 'tickets' && (
+                      <div>
+                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Global Ticket Governance</h3>
+                        <table className="table-custom">
+                          <thead>
+                            <tr><th>ID</th><th>Description</th><th>Priority</th><th>Status</th><th>Action</th></tr>
+                          </thead>
+                          <tbody>
+                            {incidents.map(inc => (
+                              <tr key={inc.id}>
+                                <td style={{ fontWeight: '600' }}>#{inc.id}</td>
+                                <td>{inc.description}</td>
+                                <td><span className={`pill pill-${inc.priority}`}>{inc.priority}</span></td>
+                                <td><span className="pill pill-status">{inc.status}</span></td>
+                                <td>
+                                  <div style={{ display: 'flex', gap: '8px' }}>
+                                    {inc.status !== 'CLOSED' && <button onClick={() => handleStatusUpdate(inc.id, 'CLOSED')} className="btn btn-success">Close</button>}
+                                    <button onClick={() => fetchAuditLogs(inc.id)} className="btn btn-secondary">History</button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
+                    {adminTab === 'settings' && (
+                      <div>
+                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>System Configuration</h3>
+                        <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
+                          <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1e293b' }}>Technician Assignment Strategy</label>
+                          <select 
+                            className="input-field"
+                            value={configList.find(c => c.configKey === 'ASSIGNMENT_STRATEGY')?.configValue || 'SKILL_BASED'}
+                            onChange={async (e) => {
+                              await axios.post(`${API}/admin/config`, { configKey: 'ASSIGNMENT_STRATEGY', configValue: e.target.value });
+                              loadDashboardData(user);
+                              alert("Assignment Strategy Updated Successfully!");
+                            }}
+                            style={{ maxWidth: '300px' }}
+                          >
+                            <option value="SKILL_BASED">Skill-Based Assignment</option>
+                            <option value="LOAD_BASED">Load-Based Assignment</option>
+                          </select>
+                          <p style={{ fontSize: '13px', color: '#64748b', marginTop: '12px', lineHeight: '1.5' }}>
+                            Dynamically alters the algorithm used to route new incidents without system downtime. Active immediately.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+      
+                    {adminTab === 'violations' && (
+                      <div>
+                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#ef4444' }}>Active SLA Violations</h3>
+                        {slaViolations.length === 0 ? (
+                          <div style={{ background: '#f0fdf4', color: '#166534', padding: '16px', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'center', fontWeight: '500' }}>
+                            🎉 Outstanding! No active SLA violations detected.
+                          </div>
+                        ) : (
+                          <table className="table-custom">
+                            <thead>
+                              <tr><th>ID</th><th>Priority</th><th>Description</th><th>Resolution Deadline</th></tr>
+                            </thead>
+                            <tbody>
+                              {slaViolations.map(inc => (
+                                <tr key={inc.id}>
+                                  <td style={{ fontWeight: '600' }}>#{inc.id}</td>
+                                  <td><span className="pill" style={{ background: '#ef4444', color: 'white' }}>{inc.priority}</span></td>
+                                  <td>{inc.description}</td>
+                                  <td style={{ color: '#ef4444', fontWeight: '600' }}>{new Date(inc.slaResolutionDeadline).toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Right Column: Notifications */}
+          <div>
+            <div className="dashboard-card" style={{ position: 'sticky', top: '32px' }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+                <h3 style={{ fontSize: '16px', fontWeight: '700', margin: 0 }}>🔔 Notifications</h3>
+                {notifications.filter(n => !n.read).length > 0 && (
+                  <span style={{ background: '#ef4444', color: 'white', fontSize: '12px', fontWeight: '700', padding: '2px 8px', borderRadius: '999px' }}>
+                    {notifications.filter(n => !n.read).length} New
+                  </span>
+                )}
+              </div>
+              
+              {notifications.filter(n => !n.read).length === 0 ? (
+                <div style={{ textAlign: 'center', color: '#94a3b8', padding: '24px 0', fontSize: '14px' }}>
+                  You're all caught up!
+                </div>
+              ) : (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                  {notifications.filter(n => !n.read).map(n => (
+                    <div key={n.id} style={{ background: '#eff6ff', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #4f46e5', transition: 'all 0.2s', position: 'relative' }}>
+                      <p style={{ fontSize: '13px', margin: '0 0 10px 0', color: '#1e293b', lineHeight: '1.4', fontWeight: '500' }}>{n.message}</p>
+                      <button onClick={() => markNotifRead(n.id)} style={{ background: 'none', border: 'none', color: '#4f46e5', cursor: 'pointer', fontSize: '12px', padding: 0, fontWeight: '700' }}>Mark as read</button>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Audit Trail Modal */}
+      {auditModalOpen && (
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(4px)' }}>
+          <div className="dashboard-card" style={{ width: '600px', maxHeight: '80vh', overflowY: 'auto', margin: 0, display: 'flex', flexDirection: 'column' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
+              <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>Incident #{currentAuditIncidentId} Audit Trail</h2>
+              <button onClick={() => setAuditModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b', lineHeight: 1 }}>&times;</button>
+            </div>
+            {currentAuditLogs.length === 0 ? (
+              <p style={{ color: '#64748b', fontSize: '14px', textAlign: 'center' }}>No audit history found.</p>
+            ) : (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {currentAuditLogs.map((log, idx) => (
+                  <div key={idx} style={{ padding: '14px', background: '#f8fafc', borderRadius: '8px', borderLeft: '4px solid #4f46e5' }}>
+                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '6px' }}>
+                      {new Date(log.timestamp).toLocaleString()} - <strong>{log.userEmail}</strong>
+                    </div>
+                    <div style={{ fontSize: '14px', color: '#1e293b', fontWeight: '700', marginBottom: '4px' }}>
+                      {log.actionPerformed}
+                    </div>
+                    <div style={{ fontSize: '13px', color: '#334155' }}>
+                      {log.description}
+                    </div>
+                    {log.previousState && log.newState && (
+                      <div style={{ fontSize: '12px', marginTop: '8px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
+                        State: <span className="pill pill-status">{log.previousState}</span> &rarr; <span className="pill pill-status">{log.newState}</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default App;
