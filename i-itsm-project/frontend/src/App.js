@@ -14,6 +14,8 @@ function App() {
   const [notifications, setNotifications] = useState([]);
   const [analytics, setAnalytics] = useState(null);
   const [slaViolations, setSlaViolations] = useState([]);
+  const [slaRisks, setSlaRisks] = useState([]);
+  const [suggestedResolutions, setSuggestedResolutions] = useState([]);
 
   // Audit Trail State
   const [auditModalOpen, setAuditModalOpen] = useState(false);
@@ -76,6 +78,8 @@ function App() {
         const anRes = await axios.get(`${API}/analytics`);
         setAnalytics(anRes.data);
         const slaRes = await axios.get(`${API}/admin/sla-violations`);
+        const riskRes = await axios.get(`${API}/admin/sla-risks`);
+        setSlaRisks(riskRes.data);
         setSlaViolations(slaRes.data);
         const usrRes = await axios.get(`${API}/admin/users`);
         setAllUsers(usrRes.data);
@@ -94,6 +98,19 @@ function App() {
     const interval = setInterval(() => loadDashboardData(user), 10000);
     return () => clearInterval(interval);
   }, [user]);
+
+  const fetchSuggestedResolutions = async (cat, desc) => {
+    try {
+      if (!desc || desc.length < 3) {
+        setSuggestedResolutions([]);
+        return;
+      }
+      const res = await axios.get(`${API}/incidents/suggested-resolution?category=${cat || ''}&description=${encodeURIComponent(desc)}`);
+      setSuggestedResolutions(res.data);
+    } catch (e) {
+      console.error(e);
+    }
+  };
 
   const handleCreateIncident = async (e) => {
     e.preventDefault();
@@ -204,7 +221,7 @@ function App() {
         .nav-tab { background: transparent; color: #64748b; border: none; padding: 12px 20px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; font-size: 14px; }
         .nav-tab.active { color: #4f46e5; border-bottom: 2px solid #4f46e5; }
         .nav-tab:hover:not(.active) { color: #1e293b; background: #f8fafc; border-radius: 8px 8px 0 0; }
-        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); text-align: center; border-bottom: 4px solid transparent; }
+        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); text-align: center; border-bottom: 4px solid transparent; }
         .report-section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
         .report-header { font-size: 14px; font-weight: 700; color: #334155; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #cbd5e1; padding-bottom: 8px; }
         .report-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #cbd5e1; font-size: 14px; }
@@ -288,7 +305,18 @@ function App() {
                     </div>
                     <div style={{ gridColumn: 'span 2' }}>
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Description</label>
-                      <textarea className="input-field" required value={description} onChange={e => setDescription(e.target.value)} rows="3" placeholder="Provide clear details regarding the disruption..."></textarea>
+                      <textarea className="input-field" required value={description} onChange={e => { setDescription(e.target.value); fetchSuggestedResolutions(category, e.target.value); }} rows="3" placeholder="Provide clear details regarding the disruption..."></textarea>
+                      {suggestedResolutions.length > 0 && (
+                        <div style={{ marginTop: '12px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px' }}>
+                          <div style={{ fontSize: '13px', fontWeight: '700', color: '#4f46e5', marginBottom: '8px' }}>💡 Suggested Resolutions from Similar Past Incidents (Feature G):</div>
+                          {suggestedResolutions.map((s, idx) => (
+                            <div key={idx} style={{ fontSize: '13px', padding: '6px 0', borderBottom: idx < suggestedResolutions.length - 1 ? '1px dashed #e2e8f0' : 'none' }}>
+                              <div><strong>Past Issue #{s.matchedIncidentId}:</strong> {s.pastDescription}</div>
+                              <div style={{ color: '#166534', marginTop: '2px' }}><strong>Resolution:</strong> {s.resolutionDetails}</div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
                     </div>
                     <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end' }}>
                       <button type="submit" className="btn btn-primary" style={{ padding: '10px 24px' }}>Submit Ticket</button>
@@ -475,6 +503,7 @@ function App() {
                     <button onClick={() => setAdminTab('services')} className={`nav-tab ${adminTab === 'services' ? 'active' : ''}`}>IT Services</button>
                     <button onClick={() => setAdminTab('settings')} className={`nav-tab ${adminTab === 'settings' ? 'active' : ''}`}>Settings</button>
                     <button onClick={() => setAdminTab('violations')} className={`nav-tab ${adminTab === 'violations' ? 'active' : ''}`}>SLA</button>
+                    <button onClick={() => setAdminTab('risks')} className={`nav-tab ${adminTab === 'risks' ? 'active' : ''}`}>SLA Risks (Feature E)</button>
                   </div>
 
                   <div style={{ padding: '24px' }}>
@@ -700,6 +729,44 @@ function App() {
                       </div>
                     )}
       
+                    {adminTab === 'risks' && (
+                      <div>
+                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#d97706' }}>⚠️ SLA Risk Detection (Feature E)</h3>
+                        <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px' }}>
+                          Identifies open incidents approaching or at risk of breaching their SLA resolution deadlines (&lt; 2 hours remaining).
+                        </p>
+                        {slaRisks.length === 0 ? (
+                          <div style={{ background: '#f0fdf4', color: '#166534', padding: '16px', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'center', fontWeight: '500' }}>
+                            ✨ All open incidents are on track within their SLA targets.
+                          </div>
+                        ) : (
+                          <table className="table-custom">
+                            <thead>
+                              <tr><th>ID</th><th>Priority</th><th>Description</th><th>Risk Level</th><th>Time Remaining</th><th>Deadline</th></tr>
+                            </thead>
+                            <tbody>
+                              {slaRisks.map(risk => (
+                                <tr key={risk.id}>
+                                  <td style={{ fontWeight: '600' }}>#{risk.id}</td>
+                                  <td><span className={`pill pill-${risk.priority}`}>{risk.priority}</span></td>
+                                  <td>{risk.description}</td>
+                                  <td>
+                                    <span className="pill" style={{ background: risk.riskLevel === 'VIOLATED' ? '#fee2e2' : '#fef3c7', color: risk.riskLevel === 'VIOLATED' ? '#dc2626' : '#d97706' }}>
+                                      {risk.riskLevel}
+                                    </span>
+                                  </td>
+                                  <td style={{ fontWeight: '600', color: risk.minutesRemaining < 0 ? '#dc2626' : '#d97706' }}>
+                                    {risk.minutesRemaining < 0 ? `Overdue by ${Math.abs(risk.minutesRemaining)} mins` : `${risk.minutesRemaining} mins left`}
+                                  </td>
+                                  <td style={{ color: '#64748b' }}>{new Date(risk.deadline).toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                      </div>
+                    )}
+
                     {adminTab === 'violations' && (
                       <div>
                         <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#ef4444' }}>Active SLA Violations</h3>

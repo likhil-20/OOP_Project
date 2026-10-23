@@ -139,6 +139,18 @@ public class ITSMController {
         return ResponseEntity.ok(user);
     }
 
+    @PostMapping("/auth/register")
+    public ResponseEntity<?> register(@RequestBody User newUser) {
+        if (userRepository.findByEmail(newUser.getEmail()).isPresent()) {
+            return ResponseEntity.status(400).body(Map.of("error", "Email already registered."));
+        }
+        newUser.setRole(User.UserRole.EMPLOYEE);
+        newUser.setApproved(false);
+        if (newUser.getPassword() == null) newUser.setPassword("password123");
+        userRepository.save(newUser);
+        return ResponseEntity.ok(Map.of("message", "Registration successful. Pending administrator approval."));
+    }
+
     @GetMapping("/services")
     public List<ItService> getServicesPublic() {
         return serviceRepository.findAll();
@@ -450,5 +462,63 @@ public class ITSMController {
         stats.put("serviceAnalysis", serviceAnalysis);
         
         return stats;
+    }
+
+    @GetMapping("/admin/sla-risks")
+    public List<Map<String, Object>> getSlaRisks() {
+        LocalDateTime now = LocalDateTime.now();
+        List<Incident> openIncidents = incidentRepository.findAll().stream()
+            .filter(i -> !i.getStatus().equals("CLOSED") && !i.getStatus().equals("RESOLVED"))
+            .collect(Collectors.toList());
+        
+        List<Map<String, Object>> risks = new ArrayList<>();
+        for (Incident inc : openIncidents) {
+            if (inc.getSlaResolutionDeadline() != null) {
+                long minutesRemaining = java.time.Duration.between(now, inc.getSlaResolutionDeadline()).toMinutes();
+                if (minutesRemaining < 120) {
+                    Map<String, Object> m = new HashMap<>();
+                    m.put("id", inc.getId());
+                    m.put("description", inc.getDescription());
+                    m.put("priority", inc.getPriority());
+                    m.put("status", inc.getStatus());
+                    m.put("deadline", inc.getSlaResolutionDeadline().toString());
+                    m.put("minutesRemaining", minutesRemaining);
+                    m.put("riskLevel", minutesRemaining < 0 ? "VIOLATED" : (minutesRemaining < 30 ? "CRITICAL" : "HIGH_RISK"));
+                    risks.add(m);
+                }
+            }
+        }
+        return risks;
+    }
+
+    @GetMapping("/incidents/suggested-resolution")
+    public ResponseEntity<?> getSuggestedResolution(@RequestParam(required = false) String category, @RequestParam(required = false) String description) {
+        List<Incident> resolvedIncidents = incidentRepository.findAll().stream()
+            .filter(i -> i.getResolutionDetails() != null && !i.getResolutionDetails().isEmpty())
+            .collect(Collectors.toList());
+        
+        List<Map<String, Object>> suggestions = new ArrayList<>();
+        for (Incident inc : resolvedIncidents) {
+            boolean matchCategory = category != null && inc.getCategory() != null && inc.getCategory().equalsIgnoreCase(category);
+            boolean matchKeyword = false;
+            if (description != null && inc.getDescription() != null) {
+                String[] words = description.toLowerCase().split("\\s+");
+                for (String w : words) {
+                    if (w.length() > 3 && inc.getDescription().toLowerCase().contains(w)) {
+                        matchKeyword = true;
+                        break;
+                    }
+                }
+            }
+            if (matchCategory || matchKeyword) {
+                Map<String, Object> m = new HashMap<>();
+                m.put("matchedIncidentId", inc.getId());
+                m.put("pastDescription", inc.getDescription());
+                m.put("category", inc.getCategory());
+                m.put("resolutionDetails", inc.getResolutionDetails());
+                suggestions.add(m);
+            }
+        }
+        return ResponseEntity.ok(suggestions);
     }
 }
