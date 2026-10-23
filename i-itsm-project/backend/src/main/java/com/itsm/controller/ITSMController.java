@@ -54,7 +54,6 @@ public class ITSMController {
             tech2.setApproved(true);
             userRepository.save(tech2);
 
-
             User emp = new User();
             emp.setEmail("employee@gmail.com");
             emp.setName("John Employee");
@@ -119,9 +118,6 @@ public class ITSMController {
         slaPolicyRepository.save(p);
     }
 
-    /**
-     * Authenticates users and enforces admin approval checks.
-     */
     @PostMapping("/auth/login")
     public ResponseEntity<?> login(@RequestBody Map<String, String> payload) {
         String email = payload.get("email");
@@ -141,19 +137,6 @@ public class ITSMController {
         }
 
         return ResponseEntity.ok(user);
-    }
-
-    @PostMapping("/auth/register")
-    public ResponseEntity<?> register(@RequestBody User newUser) {
-        if (userRepository.findByEmail(newUser.getEmail()).isPresent()) {
-            return ResponseEntity.status(400).body(Map.of("error", "Email already registered."));
-        }
-        // Strict enforcement: New registrations are forced to be EMPLOYEE role and require admin approval
-        newUser.setRole(User.UserRole.EMPLOYEE);
-        newUser.setApproved(false);
-        if (newUser.getPassword() == null) newUser.setPassword("password123");
-        userRepository.save(newUser);
-        return ResponseEntity.ok(Map.of("message", "Registration successful. Pending administrator approval."));
     }
 
     @GetMapping("/services")
@@ -227,10 +210,6 @@ public class ITSMController {
         return incidentRepository.findAll();
     }
 
-    /**
-     * Core incident creation with automatic priority mapping,
-     * SLA deadline calculation, and technician assignment routing.
-     */
     @PostMapping("/incidents")
     public ResponseEntity<?> reportIncident(@RequestBody Map<String, Object> payload) {
         try {
@@ -260,9 +239,7 @@ public class ITSMController {
             else if ("HIGH".equals(inc.getImpact()) || "HIGH".equals(inc.getUrgency())) priority = "P2";
             else if ("LOW".equals(inc.getImpact()) && "LOW".equals(inc.getUrgency())) priority = "P4";
             inc.setPriority(priority);
-            inc.setStatus(
-            "NEW");
-            // Transition to classified
+            inc.setStatus("NEW");
             inc.setStatus("CLASSIFIED");
 
             SlaPolicy sla = slaPolicyRepository.findByPriority(priority).orElse(null);
@@ -294,7 +271,6 @@ public class ITSMController {
             List<User> techs = userRepository.findByRole(User.UserRole.TECHNICIAN);
             User assignedTech = null;
             
-            // Dynamic Strategy Pattern implementation
             AssignmentStrategy strategy;
             if ("LOAD_BASED".equals(strategyType)) {
                 strategy = new LoadBasedAssignment();
@@ -340,14 +316,13 @@ public class ITSMController {
         }
     }
 
-@PutMapping("/incidents/{id}/status")
+    @PutMapping("/incidents/{id}/status")
     public ResponseEntity<?> updateIncidentStatus(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
         Incident inc = incidentRepository.findById(id).orElseThrow(() -> new RuntimeException("Not found"));
         String oldStatus = inc.getStatus();
         String newStatus = (String) payload.get("status");
         String userEmail = (String) payload.get("email");
 
-        // OOP Lifecycle state validation
         if (!IncidentLifecycleManager.isValidTransition(oldStatus, newStatus)) {
             return ResponseEntity.status(400).body(Map.of("error", "Invalid state transition from " + oldStatus + " to " + newStatus));
         }
@@ -457,6 +432,23 @@ public class ITSMController {
         stats.put("criticalIncidents", critical);
         stats.put("resolvedIncidents", resolved);
         stats.put("slaViolations", slaViolations);
+
+        List<Map<String, Object>> techWorkload = userRepository.findByRole(User.UserRole.TECHNICIAN).stream().map(t -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("name", t.getName());
+            m.put("active", incidentRepository.findByAssignedTechnicianId(t.getId()).stream().filter(i -> !i.getStatus().equals("CLOSED") && !i.getStatus().equals("RESOLVED")).count());
+            return m;
+        }).collect(Collectors.toList());
+        stats.put("technicianWorkload", techWorkload);
+
+        List<Map<String, Object>> serviceAnalysis = serviceRepository.findAll().stream().map(s -> {
+            Map<String, Object> m = new HashMap<>();
+            m.put("serviceName", s.getServiceName());
+            m.put("count", incidentRepository.findAll().stream().filter(i -> i.getAffectedService() != null && i.getAffectedService().getId().equals(s.getId())).count());
+            return m;
+        }).collect(Collectors.toList());
+        stats.put("serviceAnalysis", serviceAnalysis);
+        
         return stats;
     }
 }

@@ -21,7 +21,7 @@ function App() {
   const [currentAuditIncidentId, setCurrentAuditIncidentId] = useState(null);
 
   // Admin Management state
-  const [adminTab, setAdminTab] = useState('users');
+  const [adminTab, setAdminTab] = useState('reports');
   const [allUsers, setAllUsers] = useState([]);
   const [slaPolicies, setSlaPolicies] = useState([]);
   const [configList, setConfigList] = useState([]);
@@ -34,10 +34,12 @@ function App() {
   const [urgency, setUrgency] = useState('HIGH');
   const [description, setDescription] = useState('');
 
-  // Search & Filter state
+  // Advanced Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
   const [filterPriority, setFilterPriority] = useState('ALL');
   const [filterStatus, setFilterStatus] = useState('ALL');
+  const [filterCategory, setFilterCategory] = useState('ALL');
+  const [filterTechnician, setFilterTechnician] = useState('ALL');
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -167,7 +169,9 @@ function App() {
     const matchesSearch = inc.description.toLowerCase().includes(searchQuery.toLowerCase()) || inc.id.toString().includes(searchQuery);
     const matchesPriority = filterPriority === 'ALL' || inc.priority === filterPriority;
     const matchesStatus = filterStatus === 'ALL' || inc.status === filterStatus;
-    return matchesSearch && matchesPriority && matchesStatus;
+    const matchesCategory = filterCategory === 'ALL' || inc.category === filterCategory;
+    const matchesTech = filterTechnician === 'ALL' || (inc.assignedTechnician && inc.assignedTechnician.id.toString() === filterTechnician);
+    return matchesSearch && matchesPriority && matchesStatus && matchesCategory && matchesTech;
   });
 
   return (
@@ -201,6 +205,11 @@ function App() {
         .nav-tab.active { color: #4f46e5; border-bottom: 2px solid #4f46e5; }
         .nav-tab:hover:not(.active) { color: #1e293b; background: #f8fafc; border-radius: 8px 8px 0 0; }
         .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05); text-align: center; border-bottom: 4px solid transparent; }
+        .report-section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
+        .report-header { font-size: 14px; font-weight: 700; color: #334155; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #cbd5e1; padding-bottom: 8px; }
+        .report-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #cbd5e1; font-size: 14px; }
+        .report-row:last-child { border-bottom: none; }
+        .report-val { font-weight: 600; color: #0f172a; }
       `}</style>
 
       {/* Top Header */}
@@ -287,22 +296,29 @@ function App() {
                   </form>
                 </div>
 
-                <div className="dashboard-card" style={{ display: 'flex', gap: '16px', alignItems: 'center', background: '#fff' }}>
-                  <span style={{ fontWeight: '600', color: '#64748b', fontSize: '14px' }}>Filters:</span>
-                  <input type="text" className="input-field" placeholder="Search keywords or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ flex: 1 }} />
-                  <select className="input-field" value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{ width: '160px' }}>
+                <div className="dashboard-card" style={{ display: 'flex', gap: '12px', alignItems: 'center', background: '#fff', flexWrap: 'wrap' }}>
+                  <span style={{ fontWeight: '600', color: '#64748b', fontSize: '14px', width: '100%' }}>Filters & Search:</span>
+                  <input type="text" className="input-field" placeholder="Search keywords, description, or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ flex: 1, minWidth: '200px' }} />
+                  <select className="input-field" value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{ width: '140px' }}>
                     <option value="ALL">All Priorities</option>
                     <option value="P1">P1 - Critical</option>
                     <option value="P2">P2 - High</option>
                     <option value="P3">P3 - Medium</option>
                     <option value="P4">P4 - Low</option>
                   </select>
-                  <select className="input-field" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ width: '160px' }}>
+                  <select className="input-field" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ width: '140px' }}>
                     <option value="ALL">All Statuses</option>
+                    <option value="NEW">New</option>
+                    <option value="CLASSIFIED">Classified</option>
                     <option value="ASSIGNED">Assigned</option>
+                    <option value="ACKNOWLEDGED">Acknowledged</option>
                     <option value="IN_PROGRESS">In Progress</option>
                     <option value="RESOLVED">Resolved</option>
                     <option value="CLOSED">Closed</option>
+                  </select>
+                  <select className="input-field" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ width: '140px' }}>
+                    <option value="ALL">All Categories</option>
+                    {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
                 </div>
 
@@ -352,7 +368,7 @@ function App() {
                           </tr>
                         ))}
                         {filteredIncidents.length === 0 && (
-                          <tr><td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No incidents found.</td></tr>
+                          <tr><td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No incidents match your criteria.</td></tr>
                         )}
                       </tbody>
                     </table>
@@ -365,6 +381,28 @@ function App() {
             {user.role === 'TECHNICIAN' && (
               <div className="dashboard-card">
                 <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', color: '#0f172a' }}>Assigned Incidents & Investigation</h2>
+                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: '#fff', flexWrap: 'wrap', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '16px' }}>
+                  <span style={{ fontWeight: '600', color: '#64748b', fontSize: '14px', width: '100%' }}>Filters & Search:</span>
+                  <input type="text" className="input-field" placeholder="Search keywords, description, or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ flex: 1, minWidth: '200px' }} />
+                  <select className="input-field" value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{ width: '140px' }}>
+                    <option value="ALL">All Priorities</option>
+                    <option value="P1">P1 - Critical</option>
+                    <option value="P2">P2 - High</option>
+                    <option value="P3">P3 - Medium</option>
+                    <option value="P4">P4 - Low</option>
+                  </select>
+                  <select className="input-field" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ width: '140px' }}>
+                    <option value="ALL">All Statuses</option>
+                    <option value="ASSIGNED">Assigned</option>
+                    <option value="ACKNOWLEDGED">Acknowledged</option>
+                    <option value="IN_PROGRESS">In Progress</option>
+                    <option value="RESOLVED">Resolved</option>
+                  </select>
+                  <select className="input-field" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ width: '140px' }}>
+                    <option value="ALL">All Categories</option>
+                    {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                  </select>
+                </div>
                 <div style={{ overflowX: 'auto' }}>
                   <table className="table-custom">
                     <thead>
@@ -377,7 +415,7 @@ function App() {
                       </tr>
                     </thead>
                     <tbody>
-                      {incidents.filter(inc => inc.status !== 'CLOSED').map(inc => (
+                      {filteredIncidents.filter(inc => inc.status !== 'CLOSED').map(inc => (
                         <tr key={inc.id}>
                           <td style={{ fontWeight: '600' }}>#{inc.id}</td>
                           <td>
@@ -416,8 +454,8 @@ function App() {
                           </td>
                         </tr>
                       ))}
-                      {incidents.filter(inc => inc.status !== 'CLOSED').length === 0 && (
-                        <tr><td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No active assignments.</td></tr>
+                      {filteredIncidents.filter(inc => inc.status !== 'CLOSED').length === 0 && (
+                        <tr><td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No active assignments match your criteria.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -428,42 +466,139 @@ function App() {
             {/* ADMINISTRATOR PORTAL */}
             {user.role === 'ADMINISTRATOR' && (
               <div>
-                {analytics && (
-                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '24px' }}>
-                    <div className="stat-card" style={{ borderBottomColor: '#4f46e5' }}>
-                      <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Total Tickets</div>
-                      <div style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', marginTop: '8px' }}>{analytics.totalIncidents}</div>
-                    </div>
-                    <div className="stat-card" style={{ borderBottomColor: '#f59e0b' }}>
-                      <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Open Tickets</div>
-                      <div style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', marginTop: '8px' }}>{analytics.openIncidents}</div>
-                    </div>
-                    <div className="stat-card" style={{ borderBottomColor: '#ef4444' }}>
-                      <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Critical (P1)</div>
-                      <div style={{ fontSize: '28px', fontWeight: '700', color: '#ef4444', marginTop: '8px' }}>{analytics.criticalIncidents}</div>
-                    </div>
-                    <div className="stat-card" style={{ borderBottomColor: '#10b981' }}>
-                      <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Resolved</div>
-                      <div style={{ fontSize: '28px', fontWeight: '700', color: '#10b981', marginTop: '8px' }}>{analytics.resolvedIncidents}</div>
-                    </div>
-                    <div className="stat-card" style={{ borderBottomColor: '#8b5cf6' }}>
-                      <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>SLA Breaches</div>
-                      <div style={{ fontSize: '28px', fontWeight: '700', color: '#8b5cf6', marginTop: '8px' }}>{analytics.slaViolations}</div>
-                    </div>
-                  </div>
-                )}
-
                 <div className="dashboard-card" style={{ padding: '0', overflow: 'hidden' }}>
                   <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                    <button onClick={() => setAdminTab('reports')} className={`nav-tab ${adminTab === 'reports' ? 'active' : ''}`}>Reports & Dashboards</button>
+                    <button onClick={() => setAdminTab('tickets')} className={`nav-tab ${adminTab === 'tickets' ? 'active' : ''}`}>Ticket Governance</button>
                     <button onClick={() => setAdminTab('users')} className={`nav-tab ${adminTab === 'users' ? 'active' : ''}`}>Users</button>
                     <button onClick={() => setAdminTab('categories')} className={`nav-tab ${adminTab === 'categories' ? 'active' : ''}`}>Categories</button>
                     <button onClick={() => setAdminTab('services')} className={`nav-tab ${adminTab === 'services' ? 'active' : ''}`}>IT Services</button>
-                    <button onClick={() => setAdminTab('tickets')} className={`nav-tab ${adminTab === 'tickets' ? 'active' : ''}`}>Governance</button>
                     <button onClick={() => setAdminTab('settings')} className={`nav-tab ${adminTab === 'settings' ? 'active' : ''}`}>Settings</button>
                     <button onClick={() => setAdminTab('violations')} className={`nav-tab ${adminTab === 'violations' ? 'active' : ''}`}>SLA</button>
                   </div>
 
                   <div style={{ padding: '24px' }}>
+                    
+                    {adminTab === 'reports' && analytics && (
+                      <div>
+                         <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '24px', color: '#0f172a' }}>Global System Analytics</h3>
+                         
+                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '32px' }}>
+                          <div className="stat-card" style={{ borderBottomColor: '#4f46e5' }}>
+                            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Total Tickets</div>
+                            <div style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', marginTop: '8px' }}>{analytics.totalIncidents}</div>
+                          </div>
+                          <div className="stat-card" style={{ borderBottomColor: '#f59e0b' }}>
+                            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Open Tickets</div>
+                            <div style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', marginTop: '8px' }}>{analytics.openIncidents}</div>
+                          </div>
+                          <div className="stat-card" style={{ borderBottomColor: '#ef4444' }}>
+                            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Critical (P1)</div>
+                            <div style={{ fontSize: '28px', fontWeight: '700', color: '#ef4444', marginTop: '8px' }}>{analytics.criticalIncidents}</div>
+                          </div>
+                          <div className="stat-card" style={{ borderBottomColor: '#10b981' }}>
+                            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Resolved</div>
+                            <div style={{ fontSize: '28px', fontWeight: '700', color: '#10b981', marginTop: '8px' }}>{analytics.resolvedIncidents}</div>
+                          </div>
+                          <div className="stat-card" style={{ borderBottomColor: '#8b5cf6' }}>
+                            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>SLA Breaches</div>
+                            <div style={{ fontSize: '28px', fontWeight: '700', color: '#8b5cf6', marginTop: '8px' }}>{analytics.slaViolations}</div>
+                          </div>
+                        </div>
+
+                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
+                          <div className="report-section">
+                             <div className="report-header">Incident Overview</div>
+                             <div className="report-row"><span>Total Incidents</span><span className="report-val">{analytics.totalIncidents}</span></div>
+                             <div className="report-row"><span>Open Incidents</span><span className="report-val">{analytics.openIncidents}</span></div>
+                             <div className="report-row"><span>Critical Incidents</span><span className="report-val">{analytics.criticalIncidents}</span></div>
+                             <div className="report-row"><span>Resolved Incidents</span><span className="report-val">{analytics.resolvedIncidents}</span></div>
+                             <div className="report-row"><span>SLA Violations</span><span className="report-val">{analytics.slaViolations}</span></div>
+                          </div>
+
+                          <div className="report-section">
+                             <div className="report-header">Technician Workload</div>
+                             <div className="report-row" style={{ color: '#64748b', fontWeight: '600', textTransform: 'uppercase', fontSize: '12px' }}>
+                               <span>Technician</span><span>Active Incidents</span>
+                             </div>
+                             {analytics.technicianWorkload?.map((t, idx) => (
+                               <div key={idx} className="report-row"><span>{t.name}</span><span className="report-val">{t.active}</span></div>
+                             ))}
+                          </div>
+
+                          <div className="report-section" style={{ gridColumn: 'span 2' }}>
+                             <div className="report-header">Service Analysis</div>
+                             <div className="report-row" style={{ color: '#64748b', fontWeight: '600', textTransform: 'uppercase', fontSize: '12px' }}>
+                               <span>Service</span><span>Incidents</span>
+                             </div>
+                             {analytics.serviceAnalysis?.map((s, idx) => (
+                               <div key={idx} className="report-row"><span>{s.serviceName}</span><span className="report-val">{s.count}</span></div>
+                             ))}
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {adminTab === 'tickets' && (
+                      <div>
+                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Global Ticket Governance</h3>
+                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: '#f8fafc', flexWrap: 'wrap', marginBottom: '20px', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
+                          <span style={{ fontWeight: '600', color: '#64748b', fontSize: '14px', width: '100%' }}>Filters & Search:</span>
+                          <input type="text" className="input-field" placeholder="Search ID, description..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ flex: 1, minWidth: '150px' }} />
+                          <select className="input-field" value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{ width: '130px' }}>
+                            <option value="ALL">All Priorities</option>
+                            <option value="P1">P1</option>
+                            <option value="P2">P2</option>
+                            <option value="P3">P3</option>
+                            <option value="P4">P4</option>
+                          </select>
+                          <select className="input-field" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ width: '130px' }}>
+                            <option value="ALL">All Statuses</option>
+                            <option value="NEW">New</option>
+                            <option value="CLASSIFIED">Classified</option>
+                            <option value="ASSIGNED">Assigned</option>
+                            <option value="IN_PROGRESS">In Progress</option>
+                            <option value="RESOLVED">Resolved</option>
+                            <option value="CLOSED">Closed</option>
+                          </select>
+                          <select className="input-field" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ width: '130px' }}>
+                            <option value="ALL">All Categories</option>
+                            {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
+                          </select>
+                          <select className="input-field" value={filterTechnician} onChange={e => setFilterTechnician(e.target.value)} style={{ width: '130px' }}>
+                            <option value="ALL">All Techs</option>
+                            {allUsers.filter(u => u.role === 'TECHNICIAN').map(u => <option key={u.id} value={u.id.toString()}>{u.name}</option>)}
+                          </select>
+                        </div>
+                        
+                        <table className="table-custom">
+                          <thead>
+                            <tr><th>ID</th><th>Description</th><th>Priority</th><th>Status</th><th>Tech</th><th>Action</th></tr>
+                          </thead>
+                          <tbody>
+                            {filteredIncidents.map(inc => (
+                              <tr key={inc.id}>
+                                <td style={{ fontWeight: '600' }}>#{inc.id}</td>
+                                <td>{inc.description}</td>
+                                <td><span className={`pill pill-${inc.priority}`}>{inc.priority}</span></td>
+                                <td><span className="pill pill-status">{inc.status}</span></td>
+                                <td style={{ fontSize: '13px' }}>{inc.assignedTechnician ? inc.assignedTechnician.name : 'Unassigned'}</td>
+                                <td>
+                                  <div style={{ display: 'flex', gap: '8px' }}>
+                                    {inc.status !== 'CLOSED' && <button onClick={() => handleStatusUpdate(inc.id, 'CLOSED')} className="btn btn-success">Close</button>}
+                                    <button onClick={() => fetchAuditLogs(inc.id)} className="btn btn-secondary">History</button>
+                                  </div>
+                                </td>
+                              </tr>
+                            ))}
+                            {filteredIncidents.length === 0 && (
+                              <tr><td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No incidents match governance criteria.</td></tr>
+                            )}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
                     {adminTab === 'users' && (
                       <div>
                         <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Enterprise Directory</h3>
@@ -533,33 +668,6 @@ function App() {
                                 <td style={{ fontWeight: '600' }}>{s.serviceName}</td>
                                 <td><span className="pill pill-status">{s.businessCriticality}</span></td>
                                 <td style={{ color: '#64748b' }}>{s.description}</td>
-                              </tr>
-                            ))}
-                          </tbody>
-                        </table>
-                      </div>
-                    )}
-
-                    {adminTab === 'tickets' && (
-                      <div>
-                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Global Ticket Governance</h3>
-                        <table className="table-custom">
-                          <thead>
-                            <tr><th>ID</th><th>Description</th><th>Priority</th><th>Status</th><th>Action</th></tr>
-                          </thead>
-                          <tbody>
-                            {incidents.map(inc => (
-                              <tr key={inc.id}>
-                                <td style={{ fontWeight: '600' }}>#{inc.id}</td>
-                                <td>{inc.description}</td>
-                                <td><span className={`pill pill-${inc.priority}`}>{inc.priority}</span></td>
-                                <td><span className="pill pill-status">{inc.status}</span></td>
-                                <td>
-                                  <div style={{ display: 'flex', gap: '8px' }}>
-                                    {inc.status !== 'CLOSED' && <button onClick={() => handleStatusUpdate(inc.id, 'CLOSED')} className="btn btn-success">Close</button>}
-                                    <button onClick={() => fetchAuditLogs(inc.id)} className="btn btn-secondary">History</button>
-                                  </div>
-                                </td>
                               </tr>
                             ))}
                           </tbody>
