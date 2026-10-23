@@ -11,21 +11,20 @@ services:
       - pgdata:/var/lib/postgresql/data
 
   backend:
-    build: ./backend
+    build: ./i-itsm-project/backend
     ports:
       - "8080:8080"
     environment:
       SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/itsmdb
       SPRING_DATASOURCE_USERNAME: itsm
       SPRING_DATASOURCE_PASSWORD: itsm123
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
     depends_on:
       - db
 
   frontend:
-    build: ./frontend
+    build: ./i-itsm-project/frontend
     ports:
-      - "5173:5173"
+      - "3000:3000"
     depends_on:
       - backend
 
