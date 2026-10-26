@@ -1,5 +1,6 @@
 package com.itsm.model;
 import jakarta.persistence.*;
+import jakarta.validation.constraints.NotBlank;
 
 @Entity
 @Table(name = "system_configurations")
@@ -8,7 +9,10 @@ public class SystemConfiguration {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @NotBlank(message = "Config key is required.")
     private String configKey; // ASSIGNMENT_STRATEGY (SKILL_BASED or LOAD_BASED), etc.
+
+    @NotBlank(message = "Config value is required.")
     private String configValue;
 
     public Long getId() { return id; }

@@ -1,8 +1,12 @@
 package com.itsm.controller;
+import com.itsm.dto.IncidentRequest;
+import com.itsm.dto.LoginRequest;
+import com.itsm.dto.RegisterRequest;
 import com.itsm.model.*;
 import com.itsm.repository.*;
 import com.itsm.strategy.*;
 import com.itsm.lifecycle.*;
+import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
@@ -15,6 +19,11 @@ import java.util.stream.Collectors;
 @RequestMapping("/api")
 @CrossOrigin(origins = "http://localhost:3000")
 public class ITSMController {
+
+    private static final int MAX_TEXT_LENGTH = 2000;
+    private static final List<String> TEXT_FIELDS = List.of(
+        "investigationNotes", "resolutionDetails", "additionalInfo", "techRequestInfo", "feedbackComments");
+    private static final Set<String> ASSIGNMENT_STRATEGIES = Set.of("SKILL_BASED", "LOAD_BASED");
 
     @Autowired private UserRepository userRepository;
     @Autowired private ItServiceRepository serviceRepository;
@@ -118,18 +127,40 @@ public class ITSMController {
         slaPolicyRepository.save(p);
     }
 
-    @PostMapping("/auth/login")
-    public ResponseEntity<?> login(@RequestBody Map<String, String> payload) {
-        String email = payload.get("email");
-        String password = payload.get("password");
+    // ---------- Validation helpers ----------
 
-        Optional<User> userOpt = userRepository.findByEmail(email);
+    private ResponseEntity<?> badRequest(String message) {
+        return ResponseEntity.status(400).body(Map.of("error", message));
+    }
+
+    private static String asText(Object o) {
+        return o == null ? null : o.toString();
+    }
+
+    private static boolean isBlank(String s) {
+        return s == null || s.trim().isEmpty();
+    }
+
+    private static boolean isKnownStatus(String status) {
+        try {
+            IncidentLifecycleManager.State.valueOf(status);
+            return true;
+        } catch (IllegalArgumentException e) {
+            return false;
+        }
+    }
+
+    // ---------- Auth ----------
+
+    @PostMapping("/auth/login")
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
+        Optional<User> userOpt = userRepository.findByEmail(req.email().trim());
         if (userOpt.isEmpty()) {
             return ResponseEntity.status(401).body(Map.of("error", "User not found. Please check email."));
         }
 
         User user = userOpt.get();
-        if (!user.getPassword().equals(password)) {
+        if (!user.getPassword().equals(req.password())) {
             return ResponseEntity.status(401).body(Map.of("error", "Invalid password."));
         }
         if (!user.isApproved()) {
@@ -140,16 +171,22 @@ public class ITSMController {
     }
 
     @PostMapping("/auth/register")
-    public ResponseEntity<?> register(@RequestBody User newUser) {
-        if (userRepository.findByEmail(newUser.getEmail()).isPresent()) {
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req) {
+        String email = req.email().trim();
+        if (userRepository.findByEmail(email).isPresent()) {
             return ResponseEntity.status(400).body(Map.of("error", "Email already registered."));
         }
+        User newUser = new User();
+        newUser.setName(req.name().trim());
+        newUser.setEmail(email);
+        newUser.setPassword(req.password());
         newUser.setRole(User.UserRole.EMPLOYEE);
         newUser.setApproved(false);
-        if (newUser.getPassword() == null) newUser.setPassword("password123");
         userRepository.save(newUser);
         return ResponseEntity.ok(Map.of("message", "Registration successful. Pending administrator approval."));
     }
+
+    // ---------- Public lookups ----------
 
     @GetMapping("/services")
     public List<ItService> getServicesPublic() {
@@ -161,28 +198,43 @@ public class ITSMController {
         return categoryRepository.findAll();
     }
 
+    // ---------- Admin: categories ----------
+
     @GetMapping("/admin/categories")
     public List<IncidentCategory> getAllCategories() {
         return categoryRepository.findAll();
     }
 
     @PostMapping("/admin/categories")
-    public IncidentCategory saveCategory(@RequestBody IncidentCategory c) {
-        return categoryRepository.save(c);
+    public ResponseEntity<?> saveCategory(@Valid @RequestBody IncidentCategory c) {
+        c.setName(c.getName().trim());
+        if (c.getId() == null && categoryRepository.existsByNameIgnoreCase(c.getName())) {
+            return badRequest("Category already exists.");
+        }
+        return ResponseEntity.ok(categoryRepository.save(c));
     }
 
     @DeleteMapping("/admin/categories/{id}")
     public ResponseEntity<?> deleteCategory(@PathVariable Long id) {
+        if (!categoryRepository.existsById(id)) {
+            return ResponseEntity.status(404).body(Map.of("error", "Category not found."));
+        }
         categoryRepository.deleteById(id);
         return ResponseEntity.ok().build();
     }
+
+    // ---------- Admin: users ----------
 
     @GetMapping("/admin/users")
     public List<User> getAllUsers() { return userRepository.findAll(); }
 
     @PutMapping("/admin/users/{id}/approve")
     public ResponseEntity<?> approveUser(@PathVariable Long id) {
-        User u = userRepository.findById(id).orElseThrow(() -> new RuntimeException("User not found"));
+        Optional<User> opt = userRepository.findById(id);
+        if (opt.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("error", "User not found."));
+        }
+        User u = opt.get();
         u.setApproved(true);
         userRepository.save(u);
         return ResponseEntity.ok(u);
@@ -190,9 +242,14 @@ public class ITSMController {
 
     @DeleteMapping("/admin/users/{id}")
     public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+        if (!userRepository.existsById(id)) {
+            return ResponseEntity.status(404).body(Map.of("error", "User not found."));
+        }
         userRepository.deleteById(id);
         return ResponseEntity.ok().build();
     }
+
+    // ---------- Admin: services ----------
 
     @GetMapping("/admin/services")
     public List<ItService> getAllServices() {
@@ -200,15 +257,21 @@ public class ITSMController {
     }
 
     @PostMapping("/admin/services")
-    public ItService saveService(@RequestBody ItService s) {
+    public ItService saveService(@Valid @RequestBody ItService s) {
+        s.setServiceName(s.getServiceName().trim());
         return serviceRepository.save(s);
     }
 
     @DeleteMapping("/admin/services/{id}")
     public ResponseEntity<?> deleteService(@PathVariable Long id) {
+        if (!serviceRepository.existsById(id)) {
+            return ResponseEntity.status(404).body(Map.of("error", "Service not found."));
+        }
         serviceRepository.deleteById(id);
         return ResponseEntity.ok().build();
     }
+
+    // ---------- Incidents ----------
 
     @GetMapping("/incidents")
     public List<Incident> getAllIncidents(@RequestParam(required = false) String email, @RequestParam(required = false) String role) {
@@ -223,28 +286,35 @@ public class ITSMController {
     }
 
     @PostMapping("/incidents")
-    public ResponseEntity<?> reportIncident(@RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> reportIncident(@Valid @RequestBody IncidentRequest req) {
         try {
-            String email = (String) payload.get("email");
-            User reporter = userRepository.findByEmail(email).orElseThrow(() -> new RuntimeException("User not found: " + email));
-            
+            String email = req.email().trim();
+            Optional<User> reporterOpt = userRepository.findByEmail(email);
+            if (reporterOpt.isEmpty()) {
+                return ResponseEntity.status(404).body(Map.of("error", "User not found: " + email));
+            }
+            User reporter = reporterOpt.get();
+
+            String category = req.category().trim();
+            if (!categoryRepository.existsByNameIgnoreCase(category)) {
+                return badRequest("Unknown category: " + category);
+            }
+
             Incident inc = new Incident();
             inc.setReporter(reporter);
-            String rawCat = (String) payload.get("category");
-            inc.setCategory(rawCat != null ? rawCat.toUpperCase() : "HARDWARE");
-            inc.setDescription((String) payload.get("description"));
-            
-            Object serviceIdObj = payload.get("serviceId");
-            if (serviceIdObj != null && !serviceIdObj.toString().isEmpty()) {
-                Long serviceId = Long.valueOf(serviceIdObj.toString());
-                ItService service = serviceRepository.findById(serviceId).orElse(null);
-                inc.setAffectedService(service);
+            inc.setCategory(category.toUpperCase());
+            inc.setDescription(req.description().trim());
+
+            if (req.serviceId() != null) {
+                Optional<ItService> serviceOpt = serviceRepository.findById(req.serviceId());
+                if (serviceOpt.isEmpty()) {
+                    return badRequest("Selected IT service does not exist.");
+                }
+                inc.setAffectedService(serviceOpt.get());
             }
-            
-            String impact = (String) payload.get("impact");
-            String urgency = (String) payload.get("urgency");
-            inc.setImpact(impact != null ? impact : "MEDIUM");
-            inc.setUrgency(urgency != null ? urgency : "MEDIUM");
+
+            inc.setImpact(req.impact() != null ? req.impact() : "MEDIUM");
+            inc.setUrgency(req.urgency() != null ? req.urgency() : "MEDIUM");
 
             String priority = "P3";
             if ("HIGH".equals(inc.getImpact()) && "HIGH".equals(inc.getUrgency())) priority = "P1";
@@ -330,21 +400,57 @@ public class ITSMController {
 
     @PutMapping("/incidents/{id}/status")
     public ResponseEntity<?> updateIncidentStatus(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
-        Incident inc = incidentRepository.findById(id).orElseThrow(() -> new RuntimeException("Not found"));
-        String oldStatus = inc.getStatus();
-        String newStatus = (String) payload.get("status");
-        String userEmail = (String) payload.get("email");
+        Optional<Incident> incOpt = incidentRepository.findById(id);
+        if (incOpt.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("error", "Incident not found."));
+        }
+        Incident inc = incOpt.get();
 
+        // --- validate input ---
+        String newStatus = asText(payload.get("status"));
+        String userEmail = asText(payload.get("email"));
+
+        if (isBlank(newStatus)) return badRequest("Status is required.");
+        newStatus = newStatus.trim().toUpperCase();
+        if (!isKnownStatus(newStatus)) return badRequest("Unknown status: " + newStatus);
+        if (isBlank(userEmail)) return badRequest("User email is required.");
+        userEmail = userEmail.trim();
+
+        for (String field : TEXT_FIELDS) {
+            String value = asText(payload.get(field));
+            if (value != null && value.length() > MAX_TEXT_LENGTH) {
+                return badRequest(field + " must be at most " + MAX_TEXT_LENGTH + " characters.");
+            }
+        }
+
+        if ("RESOLVED".equals(newStatus) && isBlank(asText(payload.get("resolutionDetails")))) {
+            return badRequest("Resolution details are required to resolve an incident.");
+        }
+
+        Integer rating = null;
+        if (payload.containsKey("feedbackRating") && payload.get("feedbackRating") != null) {
+            try {
+                rating = Integer.valueOf(payload.get("feedbackRating").toString().trim());
+            } catch (NumberFormatException e) {
+                return badRequest("Feedback rating must be a number from 1 to 5.");
+            }
+            if (rating < 1 || rating > 5) {
+                return badRequest("Feedback rating must be a number from 1 to 5.");
+            }
+        }
+
+        String oldStatus = inc.getStatus();
         if (!IncidentLifecycleManager.isValidTransition(oldStatus, newStatus)) {
             return ResponseEntity.status(400).body(Map.of("error", "Invalid state transition from " + oldStatus + " to " + newStatus));
         }
 
+        // --- apply changes ---
         inc.setStatus(newStatus);
         if (payload.containsKey("investigationNotes")) {
-            inc.setInvestigationNotes((String) payload.get("investigationNotes"));
+            inc.setInvestigationNotes(asText(payload.get("investigationNotes")));
         }
         if (payload.containsKey("resolutionDetails")) {
-            inc.setResolutionDetails((String) payload.get("resolutionDetails"));
+            inc.setResolutionDetails(asText(payload.get("resolutionDetails")));
             if ("RESOLVED".equals(newStatus) && inc.getAssignedTechnician() != null) {
                 User t = inc.getAssignedTechnician();
                 t.setCurrentLoad(Math.max(0, t.getCurrentLoad() - 1));
@@ -352,14 +458,14 @@ public class ITSMController {
             }
         }
         if (payload.containsKey("additionalInfo")) {
-            inc.setAdditionalInfo((String) payload.get("additionalInfo"));
+            inc.setAdditionalInfo(asText(payload.get("additionalInfo")));
         }
         if (payload.containsKey("techRequestInfo")) {
-            inc.setTechRequestInfo((String) payload.get("techRequestInfo"));
+            inc.setTechRequestInfo(asText(payload.get("techRequestInfo")));
         }
-        if (payload.containsKey("feedbackRating")) {
-            inc.setFeedbackRating(Integer.valueOf(payload.get("feedbackRating").toString()));
-            inc.setFeedbackComments((String) payload.get("feedbackComments"));
+        if (rating != null) {
+            inc.setFeedbackRating(rating);
+            inc.setFeedbackComments(asText(payload.get("feedbackComments")));
         }
 
         Incident updated = incidentRepository.save(inc);
@@ -383,21 +489,31 @@ public class ITSMController {
         return ResponseEntity.ok(updated);
     }
 
+    // ---------- Admin: SLA & config ----------
+
     @GetMapping("/admin/sla")
     public List<SlaPolicy> getAllSla() { return slaPolicyRepository.findAll(); }
 
     @PostMapping("/admin/sla")
-    public SlaPolicy saveSla(@RequestBody SlaPolicy sla) { return slaPolicyRepository.save(sla); }
+    public ResponseEntity<?> saveSla(@Valid @RequestBody SlaPolicy sla) {
+        if (sla.getResolutionMinutes() < sla.getResponseMinutes()) {
+            return badRequest("Resolution time cannot be shorter than response time.");
+        }
+        return ResponseEntity.ok(slaPolicyRepository.save(sla));
+    }
 
     @GetMapping("/admin/config")
     public List<SystemConfiguration> getAllConfig() { return configRepository.findAll(); }
 
     @PostMapping("/admin/config")
-    public SystemConfiguration saveConfig(@RequestBody SystemConfiguration cfg) {
+    public ResponseEntity<?> saveConfig(@Valid @RequestBody SystemConfiguration cfg) {
+        if ("ASSIGNMENT_STRATEGY".equals(cfg.getConfigKey()) && !ASSIGNMENT_STRATEGIES.contains(cfg.getConfigValue())) {
+            return badRequest("Assignment strategy must be SKILL_BASED or LOAD_BASED.");
+        }
         SystemConfiguration existing = configRepository.findByConfigKey(cfg.getConfigKey()).orElse(new SystemConfiguration());
         existing.setConfigKey(cfg.getConfigKey());
         existing.setConfigValue(cfg.getConfigValue());
-        return configRepository.save(existing);
+        return ResponseEntity.ok(configRepository.save(existing));
     }
 
     @GetMapping("/admin/sla-violations")
@@ -408,6 +524,8 @@ public class ITSMController {
             .filter(i -> i.getSlaResolutionDeadline() != null && now.isAfter(i.getSlaResolutionDeadline()))
             .collect(Collectors.toList());
     }
+
+    // ---------- Notifications & audit ----------
 
     @GetMapping("/notifications")
     public List<Notification> getNotifications(@RequestParam String email) {
@@ -428,6 +546,8 @@ public class ITSMController {
     public List<AuditLog> getAuditLogs(@PathVariable Long incidentId) {
         return auditRepository.findByIncidentId(incidentId);
     }
+
+    // ---------- Analytics ----------
 
     @GetMapping("/analytics")
     public Map<String, Object> getAnalytics() {
