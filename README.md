@@ -37,3 +37,8 @@
   ```bash
   http://localhost:3000
   ```
+
+8. To Close everything, use:
+   ```bash
+   docker compose down
+   ```
