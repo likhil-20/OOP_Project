@@ -11,7 +11,9 @@
   - In the main folder (next to docker-compose.yml) create a file named exactly ".env" with these 3 lines:
 
     DB_URL=jdbc:postgresql://ep-muddy-poetry-b537ul7o.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require
+    
     DB_USER=neondb_owner
+    
     DB_PASSWORD=npg_xbyXZTeU5V9J
 
 6. Run: docker compose up --build backend frontend (not plain "docker compose up")
