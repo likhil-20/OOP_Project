@@ -9,25 +9,25 @@
   git clone https://github.com/likhil-20/OOP_Project
   ```
 3. Change the directory to `OOP_Project` and use:
-   ```bash
-   git pull
-   ```
+```bash
+  git pull
+  ```
    It should display `Already up to date.`
-5. Install docker
-6. Do the Following:
+4. Install docker
+5. Do the Following:
   - In the main folder (next to docker-compose.yml) create a file named exactly ".env" and insert these 3 lines into ".env":
 
-  ```bash
-    DB_URL=jdbc:postgresql://ep-muddy-poetry-b537ul7o.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require
-    DB_USER=neondb_owner
-    DB_PASSWORD=npg_xbyXZTeU5V9J
-  ```
+ ```bash
+   DB_URL=jdbc:postgresql://ep-muddy-poetry-b537ul7o.c-7.us-east-2.aws.neon.tech/neondb?sslmode=require
+   DB_USER=neondb_owner
+   DB_PASSWORD=npg_xbyXZTeU5V9J
+ ```
 6. Run:
-   ```bash
-   docker compose up --build backend frontend
-   ```
+  ```bash
+  docker compose up --build backend frontend
+  ```
    (not plain "docker compose up")
-8. Open
-   ```bash
-   http://localhost:3000
-   ```
+7. Open
+  ```bash
+  http://localhost:3000
+  ```
