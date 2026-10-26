@@ -40,5 +40,5 @@
 
 8. To Close everything, use:
 ```bash
-  docker compose down
+docker compose down
 ```
