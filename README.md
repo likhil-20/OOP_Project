@@ -38,6 +38,9 @@
   http://localhost:3000
   ```
 
+### Checklist:
+`https://docs.google.com/spreadsheets/d/1SebWLuT8Mb3m15Qeci5hlAUBrBwvPxWydhXxizJZbao/edit?usp=sharing`
+
 8. To Close everything, use:
 ```bash
 docker compose down
