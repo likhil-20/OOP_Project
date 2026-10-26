@@ -43,5 +43,5 @@
 docker compose down
 ```
 
-### Checklist:
-`https://docs.google.com/spreadsheets/d/1SebWLuT8Mb3m15Qeci5hlAUBrBwvPxWydhXxizJZbao/edit?usp=sharing`
+### Shared Google Sheet:
+[Checklist](https://docs.google.com/spreadsheets/d/1SebWLuT8Mb3m15Qeci5hlAUBrBwvPxWydhXxizJZbao/edit?usp=sharing)
