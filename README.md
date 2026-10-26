@@ -39,6 +39,6 @@
   ```
 
 8. To Close everything, use:
-   ```bash
-   docker compose down
-   ```
+```bash
+  docker compose down
+```
