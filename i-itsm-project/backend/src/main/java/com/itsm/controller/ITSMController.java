@@ -423,7 +423,7 @@ public class ITSMController {
             }
         }
 
-        if ("RESOLVED".equals(newStatus) && isBlank(asText(payload.get("resolutionDetails")))) {
+        if ("RESOLVED".equals(newStatus) && !"RESOLVED".equals(inc.getStatus()) && isBlank(asText(payload.get("resolutionDetails")))) {
             return badRequest("Resolution details are required to resolve an incident.");
         }
 
@@ -451,7 +451,7 @@ public class ITSMController {
         }
         if (payload.containsKey("resolutionDetails")) {
             inc.setResolutionDetails(asText(payload.get("resolutionDetails")));
-            if ("RESOLVED".equals(newStatus) && inc.getAssignedTechnician() != null) {
+            if ("RESOLVED".equals(newStatus) && !"RESOLVED".equals(oldStatus) && inc.getAssignedTechnician() != null) {
                 User t = inc.getAssignedTechnician();
                 t.setCurrentLoad(Math.max(0, t.getCurrentLoad() - 1));
                 userRepository.save(t);
