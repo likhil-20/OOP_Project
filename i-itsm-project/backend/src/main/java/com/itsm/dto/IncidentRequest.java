@@ -24,7 +24,6 @@ public record IncidentRequest(
     String impact,
 
     @Pattern(regexp = "HIGH|MEDIUM|LOW", message = "Urgency must be HIGH, MEDIUM or LOW.")
-    @Pattern(regexp = "HIGH|MEDIUM|LOW", message = "Urgency must be HIGH, MEDIUM or LOW.")
     String urgency,
 
     @Min(value = 1, message = "Affected users must be at least 1.")

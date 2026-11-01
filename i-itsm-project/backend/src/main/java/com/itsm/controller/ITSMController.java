@@ -3,6 +3,7 @@ import com.itsm.dto.IncidentRequest;
 import com.itsm.dto.LoginRequest;
 import com.itsm.dto.LoginResponse;
 import com.itsm.dto.RegisterRequest;
+import com.itsm.exception.*;
 import com.itsm.model.*;
 import com.itsm.repository.*;
 import com.itsm.security.JwtUtil;
@@ -136,14 +137,6 @@ public class ITSMController {
 
     // ---------- Validation helpers ----------
 
-    private ResponseEntity<?> badRequest(String message) {
-        return ResponseEntity.status(400).body(Map.of("error", message));
-    }
-
-    private ResponseEntity<?> forbidden(String message) {
-        return ResponseEntity.status(403).body(Map.of("error", message));
-    }
-
     private static String asText(Object o) {
         return o == null ? null : o.toString();
     }
@@ -213,7 +206,7 @@ public class ITSMController {
         Optional<User> userOpt = userRepository.findByEmail(req.email().trim());
         // Same message for "no such user" and "wrong password" so attackers can't find valid emails
         if (userOpt.isEmpty()) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid email or password."));
+            throw new UnauthorizedException("Invalid email or password.");
         }
 
         User user = userOpt.get();
@@ -231,10 +224,10 @@ public class ITSMController {
             }
         }
         if (!passwordOk) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid email or password."));
+            throw new UnauthorizedException("Invalid email or password.");
         }
         if (!user.isApproved()) {
-            return ResponseEntity.status(403).body(Map.of("error", "Your account is pending administrator approval."));
+            throw new ForbiddenException("Your account is pending administrator approval.");
         }
 
         String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
@@ -246,7 +239,7 @@ public class ITSMController {
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest req) {
         String email = req.email().trim();
         if (userRepository.findByEmail(email).isPresent()) {
-            return ResponseEntity.status(400).body(Map.of("error", "Email already registered."));
+            throw new ConflictException("Email already registered.");
         }
         User newUser = new User();
         newUser.setName(req.name().trim());
@@ -281,7 +274,7 @@ public class ITSMController {
     public ResponseEntity<?> saveCategory(@Valid @RequestBody IncidentCategory c) {
         c.setName(c.getName().trim());
         if (c.getId() == null && categoryRepository.existsByNameIgnoreCase(c.getName())) {
-            return badRequest("Category already exists.");
+            throw new BadRequestException("Category already exists.");
         }
         return ResponseEntity.ok(categoryRepository.save(c));
     }
@@ -289,7 +282,7 @@ public class ITSMController {
     @DeleteMapping("/admin/categories/{id}")
     public ResponseEntity<?> deleteCategory(@PathVariable Long id) {
         if (!categoryRepository.existsById(id)) {
-            return ResponseEntity.status(404).body(Map.of("error", "Category not found."));
+            throw new ResourceNotFoundException("Category not found.");
         }
         categoryRepository.deleteById(id);
         return ResponseEntity.ok().build();
@@ -304,7 +297,7 @@ public class ITSMController {
     public ResponseEntity<?> approveUser(@PathVariable Long id) {
         Optional<User> opt = userRepository.findById(id);
         if (opt.isEmpty()) {
-            return ResponseEntity.status(404).body(Map.of("error", "User not found."));
+            throw new ResourceNotFoundException("User not found.");
         }
         User u = opt.get();
         u.setApproved(true);
@@ -315,10 +308,10 @@ public class ITSMController {
     @DeleteMapping("/admin/users/{id}")
     public ResponseEntity<?> deleteUser(@PathVariable Long id, HttpServletRequest request) {
         if (!userRepository.existsById(id)) {
-            return ResponseEntity.status(404).body(Map.of("error", "User not found."));
+            throw new ResourceNotFoundException("User not found.");
         }
         if (currentUser(request).getId().equals(id)) {
-            return badRequest("You cannot delete your own account.");
+            throw new BadRequestException("You cannot delete your own account.");
         }
         userRepository.deleteById(id);
         return ResponseEntity.ok().build();
@@ -340,7 +333,7 @@ public class ITSMController {
     @DeleteMapping("/admin/services/{id}")
     public ResponseEntity<?> deleteService(@PathVariable Long id) {
         if (!serviceRepository.existsById(id)) {
-            return ResponseEntity.status(404).body(Map.of("error", "Service not found."));
+            throw new ResourceNotFoundException("Service not found.");
         }
         serviceRepository.deleteById(id);
         return ResponseEntity.ok().build();
@@ -362,113 +355,108 @@ public class ITSMController {
 
     @PostMapping("/incidents")
     public ResponseEntity<?> reportIncident(@Valid @RequestBody IncidentRequest req, HttpServletRequest request) {
-        try {
-            // The reporter is always the logged-in user (req.email() is ignored)
-            User reporter = currentUser(request);
+        // The reporter is always the logged-in user (req.email() is ignored)
+        User reporter = currentUser(request);
 
-            String category = req.category().trim();
-            if (!categoryRepository.existsByNameIgnoreCase(category)) {
-                return badRequest("Unknown category: " + category);
-            }
-
-            Incident inc = new Incident();
-            inc.setReporter(reporter);
-            inc.setCategory(category.toUpperCase());
-            inc.setDescription(req.description().trim());
-
-            if (req.serviceId() != null) {
-                Optional<ItService> serviceOpt = serviceRepository.findById(req.serviceId());
-                if (serviceOpt.isEmpty()) {
-                    return badRequest("Selected IT service does not exist.");
-                }
-                inc.setAffectedService(serviceOpt.get());
-            }
-
-            inc.setImpact(req.impact() != null ? req.impact() : "MEDIUM");
-            inc.setUrgency(req.urgency() != null ? req.urgency() : "MEDIUM");
-            inc.setAffectedUsers(req.affectedUsers() != null ? req.affectedUsers() : 1);
-
-            String criticality = inc.getAffectedService() != null
-                ? inc.getAffectedService().getBusinessCriticality()
-                : "MEDIUM";
-
-            String priority = calculatePriority(inc.getImpact(), inc.getUrgency(), criticality, inc.getAffectedUsers());
-            inc.setPriority(priority);
-            inc.setStatus("NEW");
-            inc.setStatus("CLASSIFIED");
-
-            SlaPolicy sla = slaPolicyRepository.findByPriority(priority).orElse(null);
-            LocalDateTime now = LocalDateTime.now();
-            if (sla != null) {
-                inc.setSlaResponseDeadline(now.plusMinutes(sla.getResponseMinutes()));
-                inc.setSlaResolutionDeadline(now.plusMinutes(sla.getResolutionMinutes()));
-            } else {
-                inc.setSlaResponseDeadline(now.plusHours(1));
-                inc.setSlaResolutionDeadline(now.plusHours(8));
-            }
-
-            List<Incident> activeIncidents = incidentRepository.findByStatusNot("CLOSED");
-            for (Incident active : activeIncidents) {
-                if (active.getDescription() != null && inc.getDescription() != null && inc.getDescription().length() >= 3) {
-                    int len = Math.min(inc.getDescription().length(), 5);
-                    String sub = inc.getDescription().toLowerCase().substring(0, len);
-                    if (active.getDescription().toLowerCase().contains(sub)) {
-                        inc.setDuplicate(true);
-                        inc.setDuplicateOfIncidentId(active.getId());
-                        break;
-                    }
-                }
-            }
-
-            String strategyType = configRepository.findByConfigKey("ASSIGNMENT_STRATEGY")
-                .map(SystemConfiguration::getConfigValue).orElse("SKILL_BASED");
-            
-            List<User> techs = userRepository.findByRole(User.UserRole.TECHNICIAN);
-            User assignedTech = null;
-            
-            AssignmentStrategy strategy;
-            if ("LOAD_BASED".equals(strategyType)) {
-                strategy = new LoadBasedAssignment();
-            } else {
-                strategy = new SkillBasedAssignment();
-            }
-            assignedTech = strategy.assignTechnician(inc, techs);
-
-            if (assignedTech != null) {
-                inc.setAssignedTechnician(assignedTech);
-                inc.setStatus("ASSIGNED");
-                assignedTech.setCurrentLoad(assignedTech.getCurrentLoad() + 1);
-                userRepository.save(assignedTech);
-            }
-
-            Incident saved = incidentRepository.save(inc);
-
-            Notification n = new Notification();
-            n.setRecipientEmail(reporter.getEmail());
-            n.setMessage("Incident #" + saved.getId() + " created (" + priority + ")");
-            notificationRepository.save(n);
-
-            if (assignedTech != null) {
-                Notification tn = new Notification();
-                tn.setRecipientEmail(assignedTech.getEmail());
-                tn.setMessage("Assigned Incident #" + saved.getId() + " (" + priority + ")");
-                notificationRepository.save(tn);
-            }
-
-            AuditLog audit = new AuditLog();
-            audit.setIncidentId(saved.getId());
-            audit.setUserEmail(reporter.getEmail());
-            audit.setActionPerformed("INCIDENT_CREATED");
-            audit.setPreviousState("NEW");
-            audit.setNewState(saved.getStatus());
-            audit.setDescription("Created incident with priority " + priority);
-            auditRepository.save(audit);
-
-            return ResponseEntity.ok(saved);
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.status(500).body(Map.of("error", e.getMessage()));
+        String category = req.category().trim();
+        if (!categoryRepository.existsByNameIgnoreCase(category)) {
+            throw new BadRequestException("Unknown category: " + category);
         }
+
+        Incident inc = new Incident();
+        inc.setReporter(reporter);
+        inc.setCategory(category.toUpperCase());
+        inc.setDescription(req.description().trim());
+
+        if (req.serviceId() != null) {
+            Optional<ItService> serviceOpt = serviceRepository.findById(req.serviceId());
+            if (serviceOpt.isEmpty()) {
+                throw new BadRequestException("Selected IT service does not exist.");
+            }
+            inc.setAffectedService(serviceOpt.get());
+        }
+
+        inc.setImpact(req.impact() != null ? req.impact() : "MEDIUM");
+        inc.setUrgency(req.urgency() != null ? req.urgency() : "MEDIUM");
+        inc.setAffectedUsers(req.affectedUsers() != null ? req.affectedUsers() : 1);
+
+        String criticality = inc.getAffectedService() != null
+            ? inc.getAffectedService().getBusinessCriticality()
+            : "MEDIUM";
+
+        String priority = calculatePriority(inc.getImpact(), inc.getUrgency(), criticality, inc.getAffectedUsers());
+        inc.setPriority(priority);
+        inc.setStatus("NEW");
+        inc.setStatus("CLASSIFIED");
+
+        SlaPolicy sla = slaPolicyRepository.findByPriority(priority).orElse(null);
+        LocalDateTime now = LocalDateTime.now();
+        if (sla != null) {
+            inc.setSlaResponseDeadline(now.plusMinutes(sla.getResponseMinutes()));
+            inc.setSlaResolutionDeadline(now.plusMinutes(sla.getResolutionMinutes()));
+        } else {
+            inc.setSlaResponseDeadline(now.plusHours(1));
+            inc.setSlaResolutionDeadline(now.plusHours(8));
+        }
+
+        List<Incident> activeIncidents = incidentRepository.findByStatusNot("CLOSED");
+        for (Incident active : activeIncidents) {
+            if (active.getDescription() != null && inc.getDescription() != null && inc.getDescription().length() >= 3) {
+                int len = Math.min(inc.getDescription().length(), 5);
+                String sub = inc.getDescription().toLowerCase().substring(0, len);
+                if (active.getDescription().toLowerCase().contains(sub)) {
+                    inc.setDuplicate(true);
+                    inc.setDuplicateOfIncidentId(active.getId());
+                    break;
+                }
+            }
+        }
+
+        String strategyType = configRepository.findByConfigKey("ASSIGNMENT_STRATEGY")
+            .map(SystemConfiguration::getConfigValue).orElse("SKILL_BASED");
+        
+        List<User> techs = userRepository.findByRole(User.UserRole.TECHNICIAN);
+        User assignedTech = null;
+        
+        AssignmentStrategy strategy;
+        if ("LOAD_BASED".equals(strategyType)) {
+            strategy = new LoadBasedAssignment();
+        } else {
+            strategy = new SkillBasedAssignment();
+        }
+        assignedTech = strategy.assignTechnician(inc, techs);
+
+        if (assignedTech != null) {
+            inc.setAssignedTechnician(assignedTech);
+            inc.setStatus("ASSIGNED");
+            assignedTech.setCurrentLoad(assignedTech.getCurrentLoad() + 1);
+            userRepository.save(assignedTech);
+        }
+
+        Incident saved = incidentRepository.save(inc);
+
+        Notification n = new Notification();
+        n.setRecipientEmail(reporter.getEmail());
+        n.setMessage("Incident #" + saved.getId() + " created (" + priority + ")");
+        notificationRepository.save(n);
+
+        if (assignedTech != null) {
+            Notification tn = new Notification();
+            tn.setRecipientEmail(assignedTech.getEmail());
+            tn.setMessage("Assigned Incident #" + saved.getId() + " (" + priority + ")");
+            notificationRepository.save(tn);
+        }
+
+        AuditLog audit = new AuditLog();
+        audit.setIncidentId(saved.getId());
+        audit.setUserEmail(reporter.getEmail());
+        audit.setActionPerformed("INCIDENT_CREATED");
+        audit.setPreviousState("NEW");
+        audit.setNewState(saved.getStatus());
+        audit.setDescription("Created incident with priority " + priority);
+        auditRepository.save(audit);
+
+        return ResponseEntity.ok(saved);
     }
 
     @PutMapping("/incidents/{id}/status")
@@ -476,43 +464,43 @@ public class ITSMController {
                                                   HttpServletRequest request) {
         Optional<Incident> incOpt = incidentRepository.findById(id);
         if (incOpt.isEmpty()) {
-            return ResponseEntity.status(404).body(Map.of("error", "Incident not found."));
+            throw new ResourceNotFoundException("Incident not found.");
         }
         Incident inc = incOpt.get();
 
         // --- who is calling, and are they allowed to touch this ticket? ---
         User me = currentUser(request);
         if (!canAccess(me, inc)) {
-            return forbidden("You are not allowed to modify this incident.");
+            throw new ForbiddenException("You are not allowed to modify this incident.");
         }
         String userEmail = me.getEmail(); // from the token, not from the request body
 
         // --- validate input ---
         String newStatus = asText(payload.get("status"));
 
-        if (isBlank(newStatus)) return badRequest("Status is required.");
+        if (isBlank(newStatus)) throw new BadRequestException("Status is required.");
         newStatus = newStatus.trim().toUpperCase();
-        if (!isKnownStatus(newStatus)) return badRequest("Unknown status: " + newStatus);
+        if (!isKnownStatus(newStatus)) throw new BadRequestException("Unknown status: " + newStatus);
 
         // --- role rules for which status changes are allowed ---
         boolean sameStatus = newStatus.equals(inc.getStatus());
         if (me.getRole() == User.UserRole.EMPLOYEE && !sameStatus && !"VERIFIED".equals(newStatus)) {
-            return forbidden("Employees can only verify a resolved incident.");
+            throw new ForbiddenException("Employees can only verify a resolved incident.");
         }
         if (me.getRole() == User.UserRole.TECHNICIAN && !sameStatus
                 && ("VERIFIED".equals(newStatus) || "CLOSED".equals(newStatus))) {
-            return forbidden("Technicians cannot verify or close incidents.");
+            throw new ForbiddenException("Technicians cannot verify or close incidents.");
         }
 
         for (String field : TEXT_FIELDS) {
             String value = asText(payload.get(field));
             if (value != null && value.length() > MAX_TEXT_LENGTH) {
-                return badRequest(field + " must be at most " + MAX_TEXT_LENGTH + " characters.");
+                throw new BadRequestException(field + " must be at most " + MAX_TEXT_LENGTH + " characters.");
             }
         }
 
         if ("RESOLVED".equals(newStatus) && !"RESOLVED".equals(inc.getStatus()) && isBlank(asText(payload.get("resolutionDetails")))) {
-            return badRequest("Resolution details are required to resolve an incident.");
+            throw new BadRequestException("Resolution details are required to resolve an incident.");
         }
 
         Integer rating = null;
@@ -520,16 +508,16 @@ public class ITSMController {
             try {
                 rating = Integer.valueOf(payload.get("feedbackRating").toString().trim());
             } catch (NumberFormatException e) {
-                return badRequest("Feedback rating must be a number from 1 to 5.");
+                throw new BadRequestException("Feedback rating must be a number from 1 to 5.");
             }
             if (rating < 1 || rating > 5) {
-                return badRequest("Feedback rating must be a number from 1 to 5.");
+                throw new BadRequestException("Feedback rating must be a number from 1 to 5.");
             }
         }
 
         String oldStatus = inc.getStatus();
         if (!IncidentLifecycleManager.isValidTransition(oldStatus, newStatus)) {
-            return ResponseEntity.status(400).body(Map.of("error", "Invalid state transition from " + oldStatus + " to " + newStatus));
+            throw new InvalidStateTransitionException(oldStatus, newStatus);
         }
 
         // --- apply changes ---
@@ -585,7 +573,7 @@ public class ITSMController {
     @PostMapping("/admin/sla")
     public ResponseEntity<?> saveSla(@Valid @RequestBody SlaPolicy sla) {
         if (sla.getResolutionMinutes() < sla.getResponseMinutes()) {
-            return badRequest("Resolution time cannot be shorter than response time.");
+            throw new BadRequestException("Resolution time cannot be shorter than response time.");
         }
         return ResponseEntity.ok(slaPolicyRepository.save(sla));
     }
@@ -596,7 +584,7 @@ public class ITSMController {
     @PostMapping("/admin/config")
     public ResponseEntity<?> saveConfig(@Valid @RequestBody SystemConfiguration cfg) {
         if ("ASSIGNMENT_STRATEGY".equals(cfg.getConfigKey()) && !ASSIGNMENT_STRATEGIES.contains(cfg.getConfigValue())) {
-            return badRequest("Assignment strategy must be SKILL_BASED or LOAD_BASED.");
+            throw new BadRequestException("Assignment strategy must be SKILL_BASED or LOAD_BASED.");
         }
         SystemConfiguration existing = configRepository.findByConfigKey(cfg.getConfigKey()).orElse(new SystemConfiguration());
         existing.setConfigKey(cfg.getConfigKey());
@@ -623,14 +611,13 @@ public class ITSMController {
 
     @PutMapping("/notifications/{id}/read")
     public ResponseEntity<?> markNotificationRead(@PathVariable Long id, HttpServletRequest request) {
-        Notification n = notificationRepository.findById(id).orElse(null);
-        if (n != null) {
-            if (!currentUser(request).getEmail().equals(n.getRecipientEmail())) {
-                return forbidden("This notification is not yours.");
-            }
-            n.setRead(true);
-            notificationRepository.save(n);
+        Notification n = notificationRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Notification not found."));
+        if (!currentUser(request).getEmail().equals(n.getRecipientEmail())) {
+            throw new ForbiddenException("This notification is not yours.");
         }
+        n.setRead(true);
+        notificationRepository.save(n);
         return ResponseEntity.ok().build();
     }
 
@@ -638,10 +625,10 @@ public class ITSMController {
     public ResponseEntity<?> getAuditLogs(@PathVariable Long incidentId, HttpServletRequest request) {
         Optional<Incident> incOpt = incidentRepository.findById(incidentId);
         if (incOpt.isEmpty()) {
-            return ResponseEntity.status(404).body(Map.of("error", "Incident not found."));
+            throw new ResourceNotFoundException("Incident not found.");
         }
         if (!canAccess(currentUser(request), incOpt.get())) {
-            return forbidden("You are not allowed to view this incident's history.");
+            throw new ForbiddenException("You are not allowed to view this incident's history.");
         }
         return ResponseEntity.ok(auditRepository.findByIncidentId(incidentId));
     }
