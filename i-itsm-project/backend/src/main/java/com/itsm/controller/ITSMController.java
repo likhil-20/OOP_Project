@@ -1,14 +1,18 @@
 package com.itsm.controller;
 import com.itsm.dto.IncidentRequest;
 import com.itsm.dto.LoginRequest;
+import com.itsm.dto.LoginResponse;
 import com.itsm.dto.RegisterRequest;
 import com.itsm.model.*;
 import com.itsm.repository.*;
+import com.itsm.security.JwtUtil;
 import com.itsm.strategy.*;
 import com.itsm.lifecycle.*;
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.web.bind.annotation.*;
 import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
@@ -34,6 +38,8 @@ public class ITSMController {
     @Autowired private AuditLogRepository auditRepository;
     @Autowired private NotificationRepository notificationRepository;
     @Autowired private IncidentCategoryRepository categoryRepository;
+    @Autowired private PasswordEncoder passwordEncoder;
+    @Autowired private JwtUtil jwtUtil;
 
     @PostConstruct
     public void init() {
@@ -41,7 +47,7 @@ public class ITSMController {
             User admin = new User();
             admin.setEmail("admin@gmail.com");
             admin.setName("System Admin");
-            admin.setPassword("admin123");
+            admin.setPassword(passwordEncoder.encode("admin123"));
             admin.setRole(User.UserRole.ADMINISTRATOR);
             admin.setApproved(true);
             userRepository.save(admin);
@@ -49,7 +55,7 @@ public class ITSMController {
             User tech = new User();
             tech.setEmail("tech.alice@gmail.com");
             tech.setName("Alice Tech");
-            tech.setPassword("tech123");
+            tech.setPassword(passwordEncoder.encode("tech123"));
             tech.setRole(User.UserRole.TECHNICIAN);
             tech.setSkills("APPLICATION,DATABASE,NETWORK,SECURITY,HARDWARE");
             tech.setApproved(true);
@@ -58,7 +64,7 @@ public class ITSMController {
             User tech2 = new User();
             tech2.setEmail("tech.bob@gmail.com");
             tech2.setName("Bob Loadbalancer");
-            tech2.setPassword("tech123");
+            tech2.setPassword(passwordEncoder.encode("tech123"));
             tech2.setRole(User.UserRole.TECHNICIAN);
             tech2.setSkills("SOFTWARE,CLOUD,STORAGE");
             tech2.setApproved(true);
@@ -67,7 +73,7 @@ public class ITSMController {
             User emp = new User();
             emp.setEmail("employee@gmail.com");
             emp.setName("John Employee");
-            emp.setPassword("emp123");
+            emp.setPassword(passwordEncoder.encode("emp123"));
             emp.setRole(User.UserRole.EMPLOYEE);
             emp.setApproved(true);
             userRepository.save(emp);
@@ -134,6 +140,10 @@ public class ITSMController {
         return ResponseEntity.status(400).body(Map.of("error", message));
     }
 
+    private ResponseEntity<?> forbidden(String message) {
+        return ResponseEntity.status(403).body(Map.of("error", message));
+    }
+
     private static String asText(Object o) {
         return o == null ? null : o.toString();
     }
@@ -150,6 +160,26 @@ public class ITSMController {
             return false;
         }
     }
+
+    // ---------- Security helpers ----------
+
+    // The logged-in user, put there by AuthInterceptor after checking the token
+    private User currentUser(HttpServletRequest request) {
+        return (User) request.getAttribute("authUser");
+    }
+
+    // Admin: everything. Employee: only their own tickets. Technician: only tickets assigned to them.
+    private boolean canAccess(User me, Incident inc) {
+        if (me.getRole() == User.UserRole.ADMINISTRATOR) return true;
+        if (me.getRole() == User.UserRole.EMPLOYEE) {
+            return inc.getReporter() != null && inc.getReporter().getId().equals(me.getId());
+        }
+        if (me.getRole() == User.UserRole.TECHNICIAN) {
+            return inc.getAssignedTechnician() != null && inc.getAssignedTechnician().getId().equals(me.getId());
+        }
+        return false;
+    }
+
     // ---------- Priority calculation ----------
 
     private static int level(String v) {
@@ -176,24 +206,40 @@ public class ITSMController {
         return "P3";
     }
 
-    // ---------- Auth ----------
+    // ---------- Auth (public: no token needed) ----------
 
     @PostMapping("/auth/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
         Optional<User> userOpt = userRepository.findByEmail(req.email().trim());
+        // Same message for "no such user" and "wrong password" so attackers can't find valid emails
         if (userOpt.isEmpty()) {
-            return ResponseEntity.status(401).body(Map.of("error", "User not found. Please check email."));
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid email or password."));
         }
 
         User user = userOpt.get();
-        if (!user.getPassword().equals(req.password())) {
-            return ResponseEntity.status(401).body(Map.of("error", "Invalid password."));
+        String stored = user.getPassword();
+        boolean passwordOk;
+        if (stored != null && stored.startsWith("$2")) {
+            // Already a BCrypt hash
+            passwordOk = passwordEncoder.matches(req.password(), stored);
+        } else {
+            // Old plain-text password from before this change: accept once, then upgrade it to a hash
+            passwordOk = stored != null && stored.equals(req.password());
+            if (passwordOk) {
+                user.setPassword(passwordEncoder.encode(req.password()));
+                userRepository.save(user);
+            }
+        }
+        if (!passwordOk) {
+            return ResponseEntity.status(401).body(Map.of("error", "Invalid email or password."));
         }
         if (!user.isApproved()) {
             return ResponseEntity.status(403).body(Map.of("error", "Your account is pending administrator approval."));
         }
 
-        return ResponseEntity.ok(user);
+        String token = jwtUtil.generateToken(user.getEmail(), user.getRole().name());
+        return ResponseEntity.ok(new LoginResponse(
+            user.getId(), user.getName(), user.getEmail(), user.getRole().name(), token));
     }
 
     @PostMapping("/auth/register")
@@ -205,14 +251,14 @@ public class ITSMController {
         User newUser = new User();
         newUser.setName(req.name().trim());
         newUser.setEmail(email);
-        newUser.setPassword(req.password());
+        newUser.setPassword(passwordEncoder.encode(req.password()));
         newUser.setRole(User.UserRole.EMPLOYEE);
         newUser.setApproved(false);
         userRepository.save(newUser);
         return ResponseEntity.ok(Map.of("message", "Registration successful. Pending administrator approval."));
     }
 
-    // ---------- Public lookups ----------
+    // ---------- Lookups (any logged-in user) ----------
 
     @GetMapping("/services")
     public List<ItService> getServicesPublic() {
@@ -224,7 +270,7 @@ public class ITSMController {
         return categoryRepository.findAll();
     }
 
-    // ---------- Admin: categories ----------
+    // ---------- Admin: categories (admin only, enforced by AuthInterceptor) ----------
 
     @GetMapping("/admin/categories")
     public List<IncidentCategory> getAllCategories() {
@@ -267,9 +313,12 @@ public class ITSMController {
     }
 
     @DeleteMapping("/admin/users/{id}")
-    public ResponseEntity<?> deleteUser(@PathVariable Long id) {
+    public ResponseEntity<?> deleteUser(@PathVariable Long id, HttpServletRequest request) {
         if (!userRepository.existsById(id)) {
             return ResponseEntity.status(404).body(Map.of("error", "User not found."));
+        }
+        if (currentUser(request).getId().equals(id)) {
+            return badRequest("You cannot delete your own account.");
         }
         userRepository.deleteById(id);
         return ResponseEntity.ok().build();
@@ -300,26 +349,22 @@ public class ITSMController {
     // ---------- Incidents ----------
 
     @GetMapping("/incidents")
-    public List<Incident> getAllIncidents(@RequestParam(required = false) String email, @RequestParam(required = false) String role) {
-        if ("EMPLOYEE".equals(role)) {
-            User u = userRepository.findByEmail(email).orElse(null);
-            if (u != null) return incidentRepository.findByReporterId(u.getId());
-        } else if ("TECHNICIAN".equals(role)) {
-            User u = userRepository.findByEmail(email).orElse(null);
-            if (u != null) return incidentRepository.findByAssignedTechnicianId(u.getId());
+    public List<Incident> getAllIncidents(HttpServletRequest request) {
+        // Who you are comes from your token, NOT from query parameters you could fake
+        User me = currentUser(request);
+        if (me.getRole() == User.UserRole.EMPLOYEE) {
+            return incidentRepository.findByReporterId(me.getId());
+        } else if (me.getRole() == User.UserRole.TECHNICIAN) {
+            return incidentRepository.findByAssignedTechnicianId(me.getId());
         }
         return incidentRepository.findAll();
     }
 
     @PostMapping("/incidents")
-    public ResponseEntity<?> reportIncident(@Valid @RequestBody IncidentRequest req) {
+    public ResponseEntity<?> reportIncident(@Valid @RequestBody IncidentRequest req, HttpServletRequest request) {
         try {
-            String email = req.email().trim();
-            Optional<User> reporterOpt = userRepository.findByEmail(email);
-            if (reporterOpt.isEmpty()) {
-                return ResponseEntity.status(404).body(Map.of("error", "User not found: " + email));
-            }
-            User reporter = reporterOpt.get();
+            // The reporter is always the logged-in user (req.email() is ignored)
+            User reporter = currentUser(request);
 
             String category = req.category().trim();
             if (!categoryRepository.existsByNameIgnoreCase(category)) {
@@ -427,22 +472,37 @@ public class ITSMController {
     }
 
     @PutMapping("/incidents/{id}/status")
-    public ResponseEntity<?> updateIncidentStatus(@PathVariable Long id, @RequestBody Map<String, Object> payload) {
+    public ResponseEntity<?> updateIncidentStatus(@PathVariable Long id, @RequestBody Map<String, Object> payload,
+                                                  HttpServletRequest request) {
         Optional<Incident> incOpt = incidentRepository.findById(id);
         if (incOpt.isEmpty()) {
             return ResponseEntity.status(404).body(Map.of("error", "Incident not found."));
         }
         Incident inc = incOpt.get();
 
+        // --- who is calling, and are they allowed to touch this ticket? ---
+        User me = currentUser(request);
+        if (!canAccess(me, inc)) {
+            return forbidden("You are not allowed to modify this incident.");
+        }
+        String userEmail = me.getEmail(); // from the token, not from the request body
+
         // --- validate input ---
         String newStatus = asText(payload.get("status"));
-        String userEmail = asText(payload.get("email"));
 
         if (isBlank(newStatus)) return badRequest("Status is required.");
         newStatus = newStatus.trim().toUpperCase();
         if (!isKnownStatus(newStatus)) return badRequest("Unknown status: " + newStatus);
-        if (isBlank(userEmail)) return badRequest("User email is required.");
-        userEmail = userEmail.trim();
+
+        // --- role rules for which status changes are allowed ---
+        boolean sameStatus = newStatus.equals(inc.getStatus());
+        if (me.getRole() == User.UserRole.EMPLOYEE && !sameStatus && !"VERIFIED".equals(newStatus)) {
+            return forbidden("Employees can only verify a resolved incident.");
+        }
+        if (me.getRole() == User.UserRole.TECHNICIAN && !sameStatus
+                && ("VERIFIED".equals(newStatus) || "CLOSED".equals(newStatus))) {
+            return forbidden("Technicians cannot verify or close incidents.");
+        }
 
         for (String field : TEXT_FIELDS) {
             String value = asText(payload.get(field));
@@ -556,14 +616,18 @@ public class ITSMController {
     // ---------- Notifications & audit ----------
 
     @GetMapping("/notifications")
-    public List<Notification> getNotifications(@RequestParam String email) {
-        return notificationRepository.findByRecipientEmail(email);
+    public List<Notification> getNotifications(HttpServletRequest request) {
+        // You only ever get YOUR notifications
+        return notificationRepository.findByRecipientEmail(currentUser(request).getEmail());
     }
 
     @PutMapping("/notifications/{id}/read")
-    public ResponseEntity<?> markNotificationRead(@PathVariable Long id) {
+    public ResponseEntity<?> markNotificationRead(@PathVariable Long id, HttpServletRequest request) {
         Notification n = notificationRepository.findById(id).orElse(null);
         if (n != null) {
+            if (!currentUser(request).getEmail().equals(n.getRecipientEmail())) {
+                return forbidden("This notification is not yours.");
+            }
             n.setRead(true);
             notificationRepository.save(n);
         }
@@ -571,11 +635,18 @@ public class ITSMController {
     }
 
     @GetMapping("/audit/{incidentId}")
-    public List<AuditLog> getAuditLogs(@PathVariable Long incidentId) {
-        return auditRepository.findByIncidentId(incidentId);
+    public ResponseEntity<?> getAuditLogs(@PathVariable Long incidentId, HttpServletRequest request) {
+        Optional<Incident> incOpt = incidentRepository.findById(incidentId);
+        if (incOpt.isEmpty()) {
+            return ResponseEntity.status(404).body(Map.of("error", "Incident not found."));
+        }
+        if (!canAccess(currentUser(request), incOpt.get())) {
+            return forbidden("You are not allowed to view this incident's history.");
+        }
+        return ResponseEntity.ok(auditRepository.findByIncidentId(incidentId));
     }
 
-    // ---------- Analytics ----------
+    // ---------- Analytics (admin only, enforced by AuthInterceptor) ----------
 
     @GetMapping("/analytics")
     public Map<String, Object> getAnalytics() {

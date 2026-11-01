@@ -44,6 +44,26 @@ function App() {
   const [filterCategory, setFilterCategory] = useState('ALL');
   const [filterTechnician, setFilterTechnician] = useState('ALL');
 
+  const handleLogout = () => {
+    delete axios.defaults.headers.common['Authorization'];
+    setUser(null);
+  };
+
+  useEffect(() => {
+    const id = axios.interceptors.response.use(
+      (r) => r,
+      (err) => {
+        const isLogin = err.config?.url?.includes('/auth/login');
+        if (err.response?.status === 401 && !isLogin) {
+          handleLogout();
+          alert('Your session expired. Please sign in again.');
+        }
+        return Promise.reject(err);
+      }
+    );
+    return () => axios.interceptors.response.eject(id);
+  }, []);
+
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -51,7 +71,9 @@ function App() {
         email: emailInput,
         password: passwordInput
       });
-      let u = res.data;
+
+      const { token, ...u } = res.data;
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       setUser(u);
       loadDashboardData(u);
     } catch (err) {
@@ -242,7 +264,7 @@ function App() {
             <div style={{ background: 'rgba(255,255,255,0.1)', padding: '6px 16px', borderRadius: '999px' }}>
               Signed in as <strong>{user.name}</strong> <span style={{ opacity: 0.8, fontSize: '12px', marginLeft: '6px' }}>({user.role})</span>
             </div>
-            <button onClick={() => setUser(null)} className="btn" style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}>Sign Out</button>
+            <button onClick={handleLogout} className="btn" style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}>Sign Out</button>
           </div>
         )}
       </header>
