@@ -34,6 +34,7 @@ function App() {
   const [serviceId, setServiceId] = useState('');
   const [impact, setImpact] = useState('HIGH');
   const [urgency, setUrgency] = useState('HIGH');
+  const [affectedUsers, setAffectedUsers] = useState(1);
   const [description, setDescription] = useState('');
 
   // Advanced Search & Filter state
@@ -116,8 +117,9 @@ function App() {
     e.preventDefault();
     if (!serviceId) return alert("Please select an affected IT service.");
     try {
-      await axios.post(`${API}/incidents`, { email: user.email, category, serviceId, impact, urgency, description });
+      await axios.post(`${API}/incidents`, { email: user.email, category, serviceId, impact, urgency, description, affectedUsers: Number(affectedUsers) });
       setDescription('');
+      setAffectedUsers(1);
       loadDashboardData(user);
       alert("Incident submitted successfully!");
     } catch (err) {
@@ -302,6 +304,11 @@ function App() {
                         <option value="MEDIUM">Medium</option>
                         <option value="LOW">Low</option>
                       </select>
+                    </div>
+                    <div>
+                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Number of Affected Users</label>
+                      <input type="number" min="1" className="input-field" value={affectedUsers}
+                            onChange={e => setAffectedUsers(e.target.value)} />
                     </div>
                     <div style={{ gridColumn: 'span 2' }}>
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Description</label>

@@ -29,6 +29,10 @@ public class Incident {
     @Column(nullable = false)
     private String urgency; // HIGH, MEDIUM, LOW
 
+    private Integer affectedUsers = 1;
+    public Integer getAffectedUsers() { return affectedUsers; }
+    public void setAffectedUsers(Integer affectedUsers) { this.affectedUsers = affectedUsers; }
+
     private String priority; // P1, P2, P3, P4
     private String status = "NEW"; // NEW, CLASSIFIED, ASSIGNED, ACKNOWLEDGED, IN_PROGRESS, RESOLVED, VERIFIED, CLOSED, ESCALATED
 

@@ -15,6 +15,7 @@ import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+
 @RestController
 @RequestMapping("/api")
 @CrossOrigin(origins = "http://localhost:3000")
@@ -148,6 +149,31 @@ public class ITSMController {
         } catch (IllegalArgumentException e) {
             return false;
         }
+    }
+    // ---------- Priority calculation ----------
+
+    private static int level(String v) {
+        if ("HIGH".equals(v)) return 3;
+        if ("LOW".equals(v)) return 1;
+        return 2; // MEDIUM or unknown
+    }
+
+    private static int usersLevel(Integer users) {
+        if (users == null || users < 10) return 1;
+        if (users < 100) return 2;
+        return 3;
+    }
+
+    private static String calculatePriority(String impact, String urgency,
+                                            String criticality, Integer affectedUsers) {
+        int effectiveImpact = (int) Math.round(
+            (level(impact) + level(criticality) + usersLevel(affectedUsers)) / 3.0);
+        int urg = level(urgency);
+
+        if (effectiveImpact == 3 && urg == 3) return "P1";
+        if (effectiveImpact == 3 || urg == 3) return "P2";
+        if (effectiveImpact == 1 && urg == 1) return "P4";
+        return "P3";
     }
 
     // ---------- Auth ----------
@@ -315,11 +341,13 @@ public class ITSMController {
 
             inc.setImpact(req.impact() != null ? req.impact() : "MEDIUM");
             inc.setUrgency(req.urgency() != null ? req.urgency() : "MEDIUM");
+            inc.setAffectedUsers(req.affectedUsers() != null ? req.affectedUsers() : 1);
 
-            String priority = "P3";
-            if ("HIGH".equals(inc.getImpact()) && "HIGH".equals(inc.getUrgency())) priority = "P1";
-            else if ("HIGH".equals(inc.getImpact()) || "HIGH".equals(inc.getUrgency())) priority = "P2";
-            else if ("LOW".equals(inc.getImpact()) && "LOW".equals(inc.getUrgency())) priority = "P4";
+            String criticality = inc.getAffectedService() != null
+                ? inc.getAffectedService().getBusinessCriticality()
+                : "MEDIUM";
+
+            String priority = calculatePriority(inc.getImpact(), inc.getUrgency(), criticality, inc.getAffectedUsers());
             inc.setPriority(priority);
             inc.setStatus("NEW");
             inc.setStatus("CLASSIFIED");

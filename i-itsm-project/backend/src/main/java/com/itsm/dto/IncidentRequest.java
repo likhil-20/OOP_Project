@@ -1,5 +1,6 @@
 package com.itsm.dto;
-
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Pattern;
@@ -23,5 +24,11 @@ public record IncidentRequest(
     String impact,
 
     @Pattern(regexp = "HIGH|MEDIUM|LOW", message = "Urgency must be HIGH, MEDIUM or LOW.")
-    String urgency
+    @Pattern(regexp = "HIGH|MEDIUM|LOW", message = "Urgency must be HIGH, MEDIUM or LOW.")
+    String urgency,
+
+    @Min(value = 1, message = "Affected users must be at least 1.")
+    @Max(value = 1000000, message = "Affected users value is too large.")
+    Integer affectedUsers
+
 ) {}
