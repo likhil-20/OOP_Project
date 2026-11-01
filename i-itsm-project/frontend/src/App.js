@@ -47,6 +47,11 @@ function App() {
   const handleLogout = () => {
     delete axios.defaults.headers.common['Authorization'];
     setUser(null);
+    setEmailInput('');
+    setPasswordInput('');
+    setIncidents([]);
+    setNotifications([]);
+    setAnalytics(null);
   };
 
   useEffect(() => {
@@ -54,7 +59,7 @@ function App() {
       (r) => r,
       (err) => {
         const isLogin = err.config?.url?.includes('/auth/login');
-        if (err.response?.status === 401 && !isLogin) {
+                if (err.response?.status === 401 && !isLogin && err.config?.headers?.Authorization) {
           handleLogout();
           alert('Your session expired. Please sign in again.');
         }
