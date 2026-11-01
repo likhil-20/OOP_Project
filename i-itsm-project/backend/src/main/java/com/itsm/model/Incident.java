@@ -57,6 +57,8 @@ public class Incident {
 
     private boolean isDuplicate = false;
     private Long duplicateOfIncidentId;
+    private Boolean escalated = false;
+    private LocalDateTime escalatedAt;
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -103,4 +105,8 @@ public class Incident {
     public void setDuplicateOfIncidentId(Long duplicateOfIncidentId) { this.duplicateOfIncidentId = duplicateOfIncidentId; }
     public LocalDateTime getCreatedAt() { return createdAt; }
     public void setCreatedAt(LocalDateTime createdAt) { this.createdAt = createdAt; }
+    public Boolean getEscalated() { return escalated; }
+    public void setEscalated(Boolean escalated) { this.escalated = escalated; }
+    public LocalDateTime getEscalatedAt() { return escalatedAt; }
+    public void setEscalatedAt(LocalDateTime escalatedAt) { this.escalatedAt = escalatedAt; }
 }
