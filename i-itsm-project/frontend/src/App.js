@@ -43,6 +43,10 @@ function App() {
   const [filterStatus, setFilterStatus] = useState('ALL');
   const [filterCategory, setFilterCategory] = useState('ALL');
   const [filterTechnician, setFilterTechnician] = useState('ALL');
+  const [filterService, setFilterService] = useState('ALL');
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
+  const [filterSla, setFilterSla] = useState('ALL');
 
   const handleLogout = () => {
     delete axios.defaults.headers.common['Authorization'];
@@ -217,7 +221,19 @@ function App() {
     const matchesStatus = filterStatus === 'ALL' || inc.status === filterStatus;
     const matchesCategory = filterCategory === 'ALL' || inc.category === filterCategory;
     const matchesTech = filterTechnician === 'ALL' || (inc.assignedTechnician && inc.assignedTechnician.id.toString() === filterTechnician);
-    return matchesSearch && matchesPriority && matchesStatus && matchesCategory && matchesTech;
+    const matchesService = filterService === 'ALL' || (inc.affectedService && inc.affectedService.id.toString() === filterService);
+
+    const created = new Date(inc.createdAt);
+    const matchesDateFrom = !filterDateFrom || created >= new Date(filterDateFrom + 'T00:00:00');
+    const matchesDateTo = !filterDateTo || created <= new Date(filterDateTo + 'T23:59:59');
+
+    const finished = ['RESOLVED', 'VERIFIED', 'CLOSED'].includes(inc.status);
+    const overdue = inc.slaResolutionDeadline && new Date(inc.slaResolutionDeadline) < new Date();
+    let slaState = 'ON_TRACK';
+    if (!finished && overdue) slaState = 'BREACHED';
+    const matchesSla = filterSla === 'ALL' || slaState === filterSla;
+
+    return matchesSearch && matchesPriority && matchesStatus && matchesCategory && matchesTech && matchesService && matchesDateFrom && matchesDateTo && matchesSla;
   });
 
   return (
@@ -382,6 +398,21 @@ function App() {
                     <option value="ALL">All Categories</option>
                     {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
+                  <select className="input-field" value={filterService} onChange={e => setFilterService(e.target.value)} style={{ width: '150px' }}>
+                    <option value="ALL">All Services</option>
+                    {services.map(s => <option key={s.id} value={s.id.toString()}>{s.serviceName}</option>)}
+                  </select>
+                  <select className="input-field" value={filterSla} onChange={e => setFilterSla(e.target.value)} style={{ width: '140px' }}>
+                    <option value="ALL">All SLA</option>
+                    <option value="ON_TRACK">On Track</option>
+                    <option value="BREACHED">Breached</option>
+                  </select>
+                  <label style={{ fontSize: '12px', color: '#64748b' }}>From
+                    <input type="date" className="input-field" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} style={{ width: '150px', marginLeft: '6px' }} />
+                  </label>
+                  <label style={{ fontSize: '12px', color: '#64748b' }}>To
+                    <input type="date" className="input-field" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} style={{ width: '150px', marginLeft: '6px' }} />
+                  </label>
                 </div>
 
                 <div className="dashboard-card">
@@ -464,6 +495,21 @@ function App() {
                     <option value="ALL">All Categories</option>
                     {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
                   </select>
+                  <select className="input-field" value={filterService} onChange={e => setFilterService(e.target.value)} style={{ width: '150px' }}>
+                    <option value="ALL">All Services</option>
+                    {services.map(s => <option key={s.id} value={s.id.toString()}>{s.serviceName}</option>)}
+                  </select>
+                  <select className="input-field" value={filterSla} onChange={e => setFilterSla(e.target.value)} style={{ width: '140px' }}>
+                    <option value="ALL">All SLA</option>
+                    <option value="ON_TRACK">On Track</option>
+                    <option value="BREACHED">Breached</option>
+                  </select>
+                  <label style={{ fontSize: '12px', color: '#64748b' }}>From
+                    <input type="date" className="input-field" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} style={{ width: '150px', marginLeft: '6px' }} />
+                  </label>
+                  <label style={{ fontSize: '12px', color: '#64748b' }}>To
+                    <input type="date" className="input-field" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} style={{ width: '150px', marginLeft: '6px' }} />
+                  </label>
                 </div>
                 <div style={{ overflowX: 'auto' }}>
                   <table className="table-custom">
@@ -632,6 +678,21 @@ function App() {
                             <option value="ALL">All Techs</option>
                             {allUsers.filter(u => u.role === 'TECHNICIAN').map(u => <option key={u.id} value={u.id.toString()}>{u.name}</option>)}
                           </select>
+                          <select className="input-field" value={filterService} onChange={e => setFilterService(e.target.value)} style={{ width: '150px' }}>
+                            <option value="ALL">All Services</option>
+                            {services.map(s => <option key={s.id} value={s.id.toString()}>{s.serviceName}</option>)}
+                          </select>
+                          <select className="input-field" value={filterSla} onChange={e => setFilterSla(e.target.value)} style={{ width: '140px' }}>
+                            <option value="ALL">All SLA</option>
+                            <option value="ON_TRACK">On Track</option>
+                            <option value="BREACHED">Breached</option>
+                          </select>
+                          <label style={{ fontSize: '12px', color: '#64748b' }}>From
+                            <input type="date" className="input-field" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} style={{ width: '150px', marginLeft: '6px' }} />
+                          </label>
+                          <label style={{ fontSize: '12px', color: '#64748b' }}>To
+                            <input type="date" className="input-field" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} style={{ width: '150px', marginLeft: '6px' }} />
+                          </label>
                         </div>
                         
                         <table className="table-custom">
