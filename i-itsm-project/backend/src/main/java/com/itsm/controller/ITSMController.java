@@ -1,4 +1,6 @@
 package com.itsm.controller;
+import com.itsm.observer.*;
+import com.itsm.factory.IncidentFactory;
 import com.itsm.dto.IncidentRequest;
 import com.itsm.dto.LoginRequest;
 import com.itsm.dto.LoginResponse;
@@ -11,6 +13,8 @@ import com.itsm.strategy.*;
 import com.itsm.lifecycle.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
+
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -19,6 +23,8 @@ import jakarta.annotation.PostConstruct;
 import java.time.LocalDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
+
+
 
 
 @RestController
@@ -41,6 +47,7 @@ public class ITSMController {
     @Autowired private IncidentCategoryRepository categoryRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtUtil jwtUtil;
+    @Autowired private IncidentEventPublisher eventPublisher;
 
     @PostConstruct
     public void init() {
@@ -363,10 +370,9 @@ public class ITSMController {
             throw new BadRequestException("Unknown category: " + category);
         }
 
-        Incident inc = new Incident();
-        inc.setReporter(reporter);
-        inc.setCategory(category.toUpperCase());
-        inc.setDescription(req.description().trim());
+        String impact = req.impact() != null ? req.impact() : "MEDIUM";
+        String urgency = req.urgency() != null ? req.urgency() : "MEDIUM";
+        Incident inc = IncidentFactory.createIncident(reporter, category.toUpperCase(), req.description().trim(), impact, urgency);
 
         if (req.serviceId() != null) {
             Optional<ItService> serviceOpt = serviceRepository.findById(req.serviceId());
@@ -376,8 +382,7 @@ public class ITSMController {
             inc.setAffectedService(serviceOpt.get());
         }
 
-        inc.setImpact(req.impact() != null ? req.impact() : "MEDIUM");
-        inc.setUrgency(req.urgency() != null ? req.urgency() : "MEDIUM");
+        
         inc.setAffectedUsers(req.affectedUsers() != null ? req.affectedUsers() : 1);
 
         String criticality = inc.getAffectedService() != null
@@ -386,8 +391,7 @@ public class ITSMController {
 
         String priority = calculatePriority(inc.getImpact(), inc.getUrgency(), criticality, inc.getAffectedUsers());
         inc.setPriority(priority);
-        inc.setStatus("NEW");
-        inc.setStatus("CLASSIFIED");
+        
 
         SlaPolicy sla = slaPolicyRepository.findByPriority(priority).orElse(null);
         LocalDateTime now = LocalDateTime.now();
@@ -435,26 +439,8 @@ public class ITSMController {
 
         Incident saved = incidentRepository.save(inc);
 
-        Notification n = new Notification();
-        n.setRecipientEmail(reporter.getEmail());
-        n.setMessage("Incident #" + saved.getId() + " created (" + priority + ")");
-        notificationRepository.save(n);
-
-        if (assignedTech != null) {
-            Notification tn = new Notification();
-            tn.setRecipientEmail(assignedTech.getEmail());
-            tn.setMessage("Assigned Incident #" + saved.getId() + " (" + priority + ")");
-            notificationRepository.save(tn);
-        }
-
-        AuditLog audit = new AuditLog();
-        audit.setIncidentId(saved.getId());
-        audit.setUserEmail(reporter.getEmail());
-        audit.setActionPerformed("INCIDENT_CREATED");
-        audit.setPreviousState("NEW");
-        audit.setNewState(saved.getStatus());
-        audit.setDescription("Created incident with priority " + priority);
-        auditRepository.save(audit);
+        eventPublisher.publish(new IncidentEvent(saved, "INCIDENT_CREATED", reporter.getEmail(),
+        "NEW", saved.getStatus(), "Created incident with priority " + priority));
 
         return ResponseEntity.ok(saved);
     }
@@ -546,21 +532,8 @@ public class ITSMController {
 
         Incident updated = incidentRepository.save(inc);
 
-        AuditLog audit = new AuditLog();
-        audit.setIncidentId(updated.getId());
-        audit.setUserEmail(userEmail);
-        audit.setActionPerformed("STATUS_UPDATE");
-        audit.setPreviousState(oldStatus);
-        audit.setNewState(newStatus);
-        audit.setDescription("Updated status to " + newStatus);
-        auditRepository.save(audit);
-
-        if (inc.getReporter() != null) {
-            Notification n = new Notification();
-            n.setRecipientEmail(inc.getReporter().getEmail());
-            n.setMessage("Incident #" + inc.getId() + " status: " + newStatus);
-            notificationRepository.save(n);
-        }
+        eventPublisher.publish(new IncidentEvent(updated, "STATUS_UPDATE", userEmail,
+        oldStatus, newStatus, "Updated status to " + newStatus));
 
         return ResponseEntity.ok(updated);
     }
