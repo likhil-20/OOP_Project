@@ -46,6 +46,9 @@ erDiagram
         text feedback_comments
         boolean is_duplicate
         bigint duplicate_of_incident_id
+        int affected_users
+        boolean escalated
+        timestamp escalated_at
         timestamp created_at
     }
     IT_SERVICES {
@@ -150,6 +153,9 @@ CREATE TABLE incidents (
     feedback_comments         TEXT,
     is_duplicate              BOOLEAN NOT NULL DEFAULT FALSE,
     duplicate_of_incident_id  BIGINT,
+    affected_users            INTEGER DEFAULT 1,
+   escalated                 BOOLEAN DEFAULT FALSE,
+   escalated_at              TIMESTAMP,
     created_at                TIMESTAMP
 );
 
@@ -188,7 +194,8 @@ CREATE TABLE notifications (
 | system_configurations | standalone | Key/value settings (`ASSIGNMENT_STRATEGY`) read when assigning technicians |
 
 Business rules stored in the data:
-- Priority matrix: HIGH impact and HIGH urgency gives P1. Either one HIGH gives P2. Both LOW gives P4. Anything else gives P3.
+   - Priority: effective impact = average of (incident impact, service criticality, affected-users level: <10 low, <100 medium, otherwise high). Effective impact HIGH and urgency HIGH gives P1. Either HIGH gives P2. Both LOW gives P4. Anything else gives P3.
+   - Auto-escalation: `EscalationService` runs every 60 s and raises priority one step when the response or resolution SLA deadline is missed.
 - SLA deadlines are computed from `sla_policies` when the incident is created.
 - Lifecycle: NEW → CLASSIFIED → ASSIGNED → ACKNOWLEDGED → IN_PROGRESS → RESOLVED → VERIFIED → CLOSED (see `IncidentLifecycleManager`).
 - `users.current_load` is increased on assignment and decreased on resolve. The load-based strategy uses it.
