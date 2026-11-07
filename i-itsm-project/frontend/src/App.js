@@ -28,6 +28,7 @@ function App() {
   const [slaPolicies, setSlaPolicies] = useState([]);
   const [configList, setConfigList] = useState([]);
   const [newCategoryName, setNewCategoryName] = useState('');
+  const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'TECHNICIAN', skills: '' });
 
   // New Incident Form State
   const [category, setCategory] = useState('');
@@ -184,11 +185,43 @@ function App() {
   };
 
   const handleDeleteUser = async (id) => {
-    if (window.confirm("Are you sure you want to delete this user?")) {
+  if (window.confirm("Are you sure you want to delete this user?")) {
+    try {
       await axios.delete(`${API}/admin/users/${id}`);
       loadDashboardData(user);
+    } catch (err) {
+      alert(err.response?.data?.error || "Failed to delete user.");
     }
-  };
+  }
+};
+
+const handleCreateUser = async (e) => {
+  e.preventDefault();
+  try {
+    await axios.post(`${API}/admin/users`, newUser);
+    setNewUser({ name: '', email: '', password: '', role: 'TECHNICIAN', skills: '' });
+    loadDashboardData(user);
+    alert("User created successfully!");
+  } catch (err) {
+    alert(err.response?.data?.error || "Failed to create user.");
+  }
+};
+
+const handleChangeRole = async (u, role) => {
+  if (role === u.role) return;
+  let skills = u.skills || '';
+  if (role === 'TECHNICIAN') {
+    const input = prompt("Skills for this technician (comma separated categories, e.g. NETWORK,DATABASE):", skills);
+    if (input === null) return;
+    skills = input;
+  }
+  try {
+    await axios.put(`${API}/admin/users/${u.id}/role`, { role, skills });
+    loadDashboardData(user);
+  } catch (err) {
+    alert(err.response?.data?.error || "Failed to change role.");
+  }
+};
 
   const handleAddCategory = async (e) => {
     e.preventDefault();
@@ -726,9 +759,21 @@ function App() {
                     {adminTab === 'users' && (
                       <div>
                         <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Enterprise Directory</h3>
+                        <form onSubmit={handleCreateUser} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr) auto', gap: '12px', marginBottom: '24px', alignItems: 'center' }}>
+  <input type="text" className="input-field" placeholder="Name" required value={newUser.name} onChange={e => setNewUser({ ...newUser, name: e.target.value })} />
+  <input type="email" className="input-field" placeholder="Email" required value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} />
+  <input type="password" className="input-field" placeholder="Password (min 6)" required minLength={6} value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} />
+  <select className="input-field" value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value })}>
+    <option value="TECHNICIAN">Technician</option>
+    <option value="EMPLOYEE">Employee</option>
+    <option value="ADMINISTRATOR">Administrator</option>
+  </select>
+  <input type="text" className="input-field" placeholder="Skills e.g. NETWORK,DATABASE" disabled={newUser.role !== 'TECHNICIAN'} value={newUser.skills} onChange={e => setNewUser({ ...newUser, skills: e.target.value })} />
+  <button type="submit" className="btn btn-primary">Add User</button>
+</form>
                         <table className="table-custom">
                           <thead>
-                            <tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Actions</th></tr>
+                            <tr><th>ID</th><th>Name</th><th>Email</th><th>Role</th><th>Skills</th><th>Status</th><th>Actions</th></tr>
                           </thead>
                           <tbody>
                             {allUsers.map(u => (
@@ -736,7 +781,14 @@ function App() {
                                 <td>#{u.id}</td>
                                 <td style={{ fontWeight: '600' }}>{u.name}</td>
                                 <td>{u.email}</td>
-                                <td><span className="pill pill-status">{u.role}</span></td>
+                                <td>
+                                  <select className="input-field" value={u.role} disabled={u.id === user.id} onChange={e => handleChangeRole(u, e.target.value)} style={{ width: '150px' }}>
+                                    <option value="EMPLOYEE">Employee</option>
+                                    <option value="TECHNICIAN">Technician</option>
+                                    <option value="ADMINISTRATOR">Administrator</option>
+                                  </select>
+                                </td>
+                                <td style={{ fontSize: '13px', color: '#64748b' }}>{u.skills || '-'}</td>
                                 <td>
                                   {u.approved ? <span className="pill" style={{ background: '#dcfce7', color: '#166534' }}>Approved</span> : <span className="pill" style={{ background: '#fef3c7', color: '#b45309' }}>Pending</span>}
                                 </td>

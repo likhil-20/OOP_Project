@@ -3,6 +3,13 @@ package com.itsm.controller;
 import com.itsm.dto.IncidentRequest;
 import com.itsm.dto.LoginRequest;
 import com.itsm.dto.RegisterRequest;
+import com.itsm.dto.CreateUserRequest;
+import com.itsm.dto.BadRequestException;
+import com.itsm.dto.ConflictException;
+import com.itsm.dto.ResourceNotFoundException;
+import com.itsm.repository.UserRepository;
+import com.itsm.repository.IncidentRepository;
+import com.itsm.repository.IncidentCategoryRepository;
 import com.itsm.model.*;
 import com.itsm.service.*;
 import jakarta.servlet.http.HttpServletRequest;
@@ -11,8 +18,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+
+import javax.management.Notification;
 
 /**
  * Thin controller: it only receives the request, calls a service, and returns the response.
@@ -28,10 +38,21 @@ public class ITSMController {
     @Autowired private AdminService adminService;
     @Autowired private AnalyticsService analyticsService;
     @Autowired private NotificationService notificationService;
-
+    @Autowired private UserRepository userRepository;
+@Autowired private IncidentRepository incidentRepository;
+@Autowired private IncidentCategoryRepository categoryRepository;
+@Autowired private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     // The logged-in user, put there by AuthInterceptor after checking the token
     private User currentUser(HttpServletRequest request) {
         return (User) request.getAttribute("authUser");
+    }
+    // --- PAIR OF HELPER METHODS GO RIGHT HERE ---
+    private String asText(Object obj) {
+        return obj == null ? null : obj.toString();
+    }
+
+    private boolean isBlank(String str) {
+        return str == null || str.trim().isEmpty();
     }
 
     // ---------- Auth (public) ----------
@@ -88,7 +109,74 @@ public class ITSMController {
     public ResponseEntity<?> approveUser(@PathVariable Long id) {
         return ResponseEntity.ok(adminService.approveUser(id));
     }
+    @PostMapping("/admin/users")
+public ResponseEntity<?> createUser(@Valid @RequestBody CreateUserRequest req) {
+    String email = req.email().trim();
+    if (userRepository.findByEmail(email).isPresent()) {
+        throw new ConflictException("Email already registered.");
+    }
+    User.UserRole role;
+    try {
+        role = User.UserRole.valueOf(req.role().trim().toUpperCase());
+    } catch (IllegalArgumentException e) {
+        throw new BadRequestException("Role must be EMPLOYEE, TECHNICIAN or ADMINISTRATOR.");
+    }
+    User u = new User();
+    u.setName(req.name().trim());
+    u.setEmail(email);
+    u.setPassword(passwordEncoder.encode(req.password()));
+    u.setRole(role);
+    u.setSkills(role == User.UserRole.TECHNICIAN ? cleanSkills(req.skills()) : null);
+    u.setApproved(true);
+    return ResponseEntity.ok(userRepository.save(u));
+}
 
+@PutMapping("/admin/users/{id}/role")
+public ResponseEntity<?> changeUserRole(@PathVariable Long id, @RequestBody Map<String, Object> payload,
+                                        HttpServletRequest request) {
+    User u = userRepository.findById(id)
+        .orElseThrow(() -> new ResourceNotFoundException("User not found."));
+    if (currentUser(request).getId().equals(id)) {
+        throw new BadRequestException("You cannot change your own role.");
+    }
+    String roleText = asText(payload.get("role"));
+    if (isBlank(roleText)) throw new BadRequestException("Role is required.");
+    User.UserRole newRole;
+    try {
+        newRole = User.UserRole.valueOf(roleText.trim().toUpperCase());
+    } catch (IllegalArgumentException e) {
+        throw new BadRequestException("Role must be EMPLOYEE, TECHNICIAN or ADMINISTRATOR.");
+    }
+    if (u.getRole() == User.UserRole.TECHNICIAN && newRole != User.UserRole.TECHNICIAN) {
+        boolean hasActive = incidentRepository.findByAssignedTechnicianId(id).stream()
+            .anyMatch(i -> !List.of("RESOLVED", "VERIFIED", "CLOSED").contains(i.getStatus()));
+        if (hasActive) {
+            throw new BadRequestException("This technician still has active incidents. Resolve them first.");
+        }
+    }
+    u.setRole(newRole);
+    if (newRole == User.UserRole.TECHNICIAN) {
+        u.setSkills(cleanSkills(asText(payload.get("skills"))));
+    } else {
+        u.setSkills(null);
+        u.setCurrentLoad(0);
+    }
+    return ResponseEntity.ok(userRepository.save(u));
+}
+
+private String cleanSkills(String raw) {
+    if (raw == null || raw.isBlank()) return null;
+    List<String> out = new ArrayList<>();
+    for (String s : raw.split(",")) {
+        String skill = s.trim().toUpperCase();
+        if (skill.isEmpty()) continue;
+        if (!categoryRepository.existsByNameIgnoreCase(skill)) {
+            throw new BadRequestException("Unknown skill (not a category): " + skill);
+        }
+        if (!out.contains(skill)) out.add(skill);
+    }
+    return out.isEmpty() ? null : String.join(",", out);
+}
     @DeleteMapping("/admin/users/{id}")
     public ResponseEntity<?> deleteUser(@PathVariable Long id, HttpServletRequest request) {
         adminService.deleteUser(id, currentUser(request));
@@ -173,7 +261,7 @@ public class ITSMController {
     // ---------- Notifications & audit ----------
 
     @GetMapping("/notifications")
-    public List<Notification> getNotifications(HttpServletRequest request) {
+    public List<com.itsm.model.Notification> getNotifications(HttpServletRequest request) {
         return notificationService.getFor(currentUser(request));
     }
 
