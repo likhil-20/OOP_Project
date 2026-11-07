@@ -432,7 +432,7 @@ function App() {
                       <tbody>
                         {filteredIncidents.map(inc => (
                           <tr key={inc.id}>
-                            <td style={{ fontWeight: '600' }}>#{inc.id} {inc.isDuplicate && <span className="pill" style={{ background: '#fee2e2', color: '#dc2626', marginLeft: '6px' }}>Duplicate</span>}</td>
+                            <td style={{ fontWeight: '600' }}>#{inc.id} {inc.duplicate && <span className="pill" style={{ background: '#fee2e2', color: '#dc2626', marginLeft: '6px' }}>Duplicate of #{inc.duplicateOfIncidentId}</span>}</td>
                             <td>{inc.description}</td>
                             <td><span className={`pill pill-${inc.priority}`}>{inc.priority}</span></td>
                             <td><span className="pill pill-status">{inc.status}</span></td>
@@ -525,7 +525,7 @@ function App() {
                     <tbody>
                       {filteredIncidents.filter(inc => inc.status !== 'CLOSED').map(inc => (
                         <tr key={inc.id}>
-                          <td style={{ fontWeight: '600' }}>#{inc.id}</td>
+                          <td style={{ fontWeight: '600' }}>#{inc.id} {inc.duplicate && <span className="pill" style={{ background: '#fee2e2', color: '#dc2626', marginLeft: '6px' }}>Duplicate of #{inc.duplicateOfIncidentId}</span>}</td>
                           <td>
                             {inc.description}
                             {inc.additionalInfo && <div style={{ background: '#f0fdf4', color: '#166534', padding: '6px 10px', borderRadius: '6px', marginTop: '8px', fontSize: '12px', border: '1px solid #bbf7d0' }}><strong>Employee Reply:</strong> {inc.additionalInfo}</div>}
@@ -702,7 +702,7 @@ function App() {
                           <tbody>
                             {filteredIncidents.map(inc => (
                               <tr key={inc.id}>
-                                <td style={{ fontWeight: '600' }}>#{inc.id}</td>
+                                <td style={{ fontWeight: '600' }}>#{inc.id} {inc.duplicate && <span className="pill" style={{ background: '#fee2e2', color: '#dc2626', marginLeft: '6px' }}>Duplicate of #{inc.duplicateOfIncidentId}</span>}</td>
                                 <td>{inc.description}</td>
                                 <td><span className={`pill pill-${inc.priority}`}>{inc.priority}</span></td>
                                 <td><span className="pill pill-status">{inc.status}</span></td>

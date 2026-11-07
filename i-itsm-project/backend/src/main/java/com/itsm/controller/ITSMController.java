@@ -206,6 +206,34 @@ public class ITSMController {
         return "P3";
     }
 
+    private static final Set<String> STOP_WORDS = Set.of(
+    "this", "that", "with", "from", "have", "been", "when", "after",
+    "very", "does", "doesnt", "cant", "just", "since", "while", "there");
+
+private static Set<String> keywords(String text) {
+    Set<String> out = new HashSet<>();
+    if (text == null) return out;
+    for (String w : text.toLowerCase().split("[^a-z0-9]+")) {
+        if (w.length() > 3 && !STOP_WORDS.contains(w)) out.add(w);
+    }
+    return out;
+}
+
+private static boolean isDuplicateOf(Incident a, Incident b) {
+    if (a.getCategory() == null || !a.getCategory().equalsIgnoreCase(b.getCategory())) return false;
+    if (a.getAffectedService() == null || b.getAffectedService() == null) return false;
+    if (!a.getAffectedService().getId().equals(b.getAffectedService().getId())) return false;
+
+    Set<String> ka = keywords(a.getDescription());
+    Set<String> kb = keywords(b.getDescription());
+    if (ka.isEmpty() || kb.isEmpty()) return false;
+
+    Set<String> common = new HashSet<>(ka);
+    common.retainAll(kb);
+    double overlap = (double) common.size() / Math.min(ka.size(), kb.size());
+    return common.size() >= 2 && overlap >= 0.5;
+}
+
     // ---------- Auth (public: no token needed) ----------
 
     @PostMapping("/auth/login")
@@ -405,14 +433,10 @@ public class ITSMController {
 
         List<Incident> activeIncidents = incidentRepository.findByStatusNot("CLOSED");
         for (Incident active : activeIncidents) {
-            if (active.getDescription() != null && inc.getDescription() != null && inc.getDescription().length() >= 3) {
-                int len = Math.min(inc.getDescription().length(), 5);
-                String sub = inc.getDescription().toLowerCase().substring(0, len);
-                if (active.getDescription().toLowerCase().contains(sub)) {
-                    inc.setDuplicate(true);
-                    inc.setDuplicateOfIncidentId(active.getId());
-                    break;
-                }
+            if (isDuplicateOf(inc, active)) {
+                inc.setDuplicate(true);
+                inc.setDuplicateOfIncidentId(active.getId());
+                break;
             }
         }
 
