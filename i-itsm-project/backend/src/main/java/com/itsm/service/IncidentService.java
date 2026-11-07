@@ -168,32 +168,19 @@ public class IncidentService {
 
     // ---------- Duplicate detection ----------
 
-    private static final Set<String> STOP_WORDS = Set.of(
-        "this", "that", "with", "from", "have", "been", "when", "after",
-        "very", "does", "doesnt", "cant", "just", "since", "while", "there");
-
-    private static Set<String> keywords(String text) {
-        Set<String> out = new HashSet<>();
-        if (text == null) return out;
-        for (String w : text.toLowerCase().split("[^a-z0-9]+")) {
-            if (w.length() > 3 && !STOP_WORDS.contains(w)) out.add(w);
-        }
-        return out;
-    }
-
+    // Duplicate = same description (ignoring upper/lower case) AND same priority
     private static boolean isDuplicateOf(Incident a, Incident b) {
+        if (a.getDescription() == null || b.getDescription() == null) return false;
+        if (a.getPriority() == null || b.getPriority() == null) return false;
+
+        boolean sameDescription = a.getDescription().trim().equalsIgnoreCase(b.getDescription().trim());
+        boolean samePriority = a.getPriority().equals(b.getPriority());
+
         if (a.getCategory() == null || !a.getCategory().equalsIgnoreCase(b.getCategory())) return false;
-        if (a.getAffectedService() == null || b.getAffectedService() == null) return false;
-        if (!a.getAffectedService().getId().equals(b.getAffectedService().getId())) return false;
+        if (a.getAffectedService() == null || b.getAffectedService() == null
+                || !a.getAffectedService().getId().equals(b.getAffectedService().getId())) return false;
 
-        Set<String> ka = keywords(a.getDescription());
-        Set<String> kb = keywords(b.getDescription());
-        if (ka.isEmpty() || kb.isEmpty()) return false;
-
-        Set<String> common = new HashSet<>(ka);
-        common.retainAll(kb);
-        double overlap = (double) common.size() / Math.min(ka.size(), kb.size());
-        return common.size() >= 2 && overlap >= 0.5;
+        return sameDescription && samePriority;
     }
 
     // ---------- Suggested resolutions ----------
