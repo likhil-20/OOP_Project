@@ -51,6 +51,8 @@ function App() {
 
   const handleLogout = () => {
     delete axios.defaults.headers.common['Authorization'];
+    localStorage.removeItem('token');     
+    localStorage.removeItem('user');
     setUser(null);
     setEmailInput('');
     setPasswordInput('');
@@ -74,6 +76,17 @@ function App() {
     return () => axios.interceptors.response.eject(id);
   }, []);
 
+      useEffect(() => {
+    const token = localStorage.getItem('token');
+    const saved = localStorage.getItem('user');
+    if (token && saved) {
+      axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      const u = JSON.parse(saved);
+      setUser(u);
+      loadDashboardData(u);
+    }
+  }, []);
+  
   const handleLogin = async (e) => {
     e.preventDefault();
     try {
@@ -84,6 +97,8 @@ function App() {
 
       const { token, ...u } = res.data;
       axios.defaults.headers.common['Authorization'] = `Bearer ${token}`;
+      localStorage.setItem('token', token);              
+      localStorage.setItem('user', JSON.stringify(u));
       setUser(u);
       loadDashboardData(u);
     } catch (err) {

@@ -1,4 +1,4 @@
-````markdown
+```markdown
 # Technology Report
 
 | Area | Technology | Version | Why it was chosen |
