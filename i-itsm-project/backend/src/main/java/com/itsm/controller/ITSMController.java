@@ -40,6 +40,7 @@ public class ITSMController {
 @Autowired private IncidentRepository incidentRepository;
 @Autowired private IncidentCategoryRepository categoryRepository;
 @Autowired private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+   @Autowired private com.itsm.service.EmailService emailService;
     // The logged-in user, put there by AuthInterceptor after checking the token
     private User currentUser(HttpServletRequest request) {
         return (User) request.getAttribute("authUser");
@@ -126,7 +127,14 @@ public ResponseEntity<?> createUser(@Valid @RequestBody CreateUserRequest req) {
     u.setRole(role);
     u.setSkills(role == User.UserRole.TECHNICIAN ? cleanSkills(req.skills()) : null);
     u.setApproved(true);
-    return ResponseEntity.ok(userRepository.save(u));
+    User saved = userRepository.save(u);
+
+    emailService.send(saved.getEmail(), "Your I-ITSM account is ready",
+    "Hello " + saved.getName() + ",\n\nAn I-ITSM account has been created for you.\n\n"
+    + "Email: " + saved.getEmail() + "\n"
+    + "Password: " + req.password() + "\n"
+    + "Role: " + saved.getRole() + "\n\nSign in at http://localhost:3000\n\nI-ITSM Service Desk");
+    return ResponseEntity.ok(saved);
 }
 
 @PutMapping("/admin/users/{id}/role")
@@ -282,6 +290,24 @@ private String cleanSkills(String raw) {
 
     // ---------- Analytics (admin only, enforced by AuthInterceptor) ----------
 
+        // ---------- Mailbox ----------
+
+    @GetMapping("/emails")
+    public List<EmailLog> myEmails(HttpServletRequest request) {
+        return emailService.getFor(currentUser(request));
+    }
+
+    @GetMapping("/admin/emails")
+    public List<EmailLog> allEmails() {
+        return emailService.getAll();
+    }
+
+    @PutMapping("/emails/{id}/open")
+    public ResponseEntity<?> openEmail(@PathVariable Long id, HttpServletRequest request) {
+        emailService.markOpened(id, currentUser(request));
+        return ResponseEntity.ok().build();
+    }
+    
     @GetMapping("/analytics")
     public Map<String, Object> getAnalytics() {
         return analyticsService.getAnalytics();

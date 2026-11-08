@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import IncidentForm from './IncidentForm';
+import Mailbox from './Mailbox';
 
 const API = 'http://localhost:8080/api';
 
@@ -13,6 +14,8 @@ function App() {
   const [services, setServices] = useState([]);
   const [categories, setCategories] = useState([]);
   const [notifications, setNotifications] = useState([]);
+  const [showMail, setShowMail] = useState(false);
+  const [mailUnread, setMailUnread] = useState(0);
   const [analytics, setAnalytics] = useState(null);
   const [slaViolations, setSlaViolations] = useState([]);
   const [slaRisks, setSlaRisks] = useState([]);
@@ -126,6 +129,8 @@ function App() {
       
       const nRes = await axios.get(`${API}/notifications?email=${u.email}`);
       setNotifications([...nRes.data].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt) || b.id - a.id));
+      const mailRes = await axios.get(`${API}/emails`);
+      setMailUnread(mailRes.data.filter(m => !m.opened).length);
 
       if (u.role === 'ADMINISTRATOR') {
         const anRes = await axios.get(`${API}/analytics`);
@@ -350,6 +355,7 @@ const handleChangeRole = async (u, role) => {
               Signed in as <strong>{user.name}</strong> <span style={{ opacity: 0.8, fontSize: '12px', marginLeft: '6px' }}>({user.role})</span>
             </div>
             <button onClick={handleLogout} className="btn" style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}>Sign Out</button>
+            <button onClick={() => setShowMail(true)} className="btn" style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}>✉ Mail{mailUnread > 0 ? ` (${mailUnread})` : ''}</button>
           </div>
         )}
       </header>
@@ -959,7 +965,8 @@ const handleChangeRole = async (u, role) => {
           </div>
         </div>
       )}
-
+      
+      {user && showMail && <Mailbox user={user} onClose={() => setShowMail(false)} onChanged={() => loadDashboardData(user)} />}
       {/* Audit Trail Modal */}
       {auditModalOpen && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(4px)' }}>
