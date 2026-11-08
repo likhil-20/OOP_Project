@@ -30,7 +30,7 @@
        @Scheduled(fixedDelay = 60000, initialDelay = 30000)
        public void checkAndEscalate() {
            LocalDateTime now = LocalDateTime.now();
-           for (Incident inc : incidentRepository.findAll()) {
+           for (Incident inc : incidentRepository.findEscalationCandidates(FINISHED)) {
                if (inc.getStatus() == null || FINISHED.contains(inc.getStatus())) continue;
                if (Boolean.TRUE.equals(inc.getEscalated())) continue;
 

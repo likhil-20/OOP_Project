@@ -11,6 +11,7 @@ import com.itsm.repository.*;
 import com.itsm.strategy.*;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -62,6 +63,7 @@ public class IncidentService {
 
     // ---------- Create incident ----------
 
+    @Transactional
     public Incident reportIncident(IncidentRequest req, User reporter) {
         String category = req.category().trim();
         if (!"OTHERS".equalsIgnoreCase(category) && !categoryRepository.existsByNameIgnoreCase(category)) {
@@ -112,7 +114,9 @@ public class IncidentService {
     }
 
     private void markDuplicateIfAny(Incident inc) {
-        for (Incident active : incidentRepository.findByStatusNot("CLOSED")) {
+        if (inc.getAffectedService() == null || inc.getPriority() == null) return;
+        for (Incident active : incidentRepository.findDuplicateCandidates(
+                inc.getCategory(), inc.getPriority(), inc.getAffectedService().getId())) {
             if (isDuplicateOf(inc, active)) {
                 inc.setDuplicate(true);
                 inc.setDuplicateOfIncidentId(active.getId());
@@ -186,7 +190,7 @@ public class IncidentService {
     // ---------- Suggested resolutions ----------
 
     public List<Map<String, Object>> getSuggestedResolutions(String category, String description) {
-        List<Incident> resolvedIncidents = incidentRepository.findAll().stream()
+        List<Incident> resolvedIncidents = incidentRepository.findTop200ByResolutionDetailsIsNotNullOrderByIdDesc().stream()
             .filter(i -> i.getResolutionDetails() != null && !i.getResolutionDetails().isEmpty())
             .collect(Collectors.toList());
 
@@ -209,7 +213,7 @@ public class IncidentService {
                 m.put("pastDescription", inc.getDescription());
                 m.put("category", inc.getCategory());
                 m.put("resolutionDetails", inc.getResolutionDetails());
-                suggestions.add(m);
+                if (suggestions.size() < 5) suggestions.add(m);
             }
         }
         return suggestions;
@@ -238,6 +242,7 @@ public class IncidentService {
         }
     }
 
+    @Transactional
     public Incident updateStatus(Long id, Map<String, Object> payload, User me) {
         Incident inc = incidentRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Incident not found."));

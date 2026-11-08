@@ -20,7 +20,7 @@ export default function Mailbox({ user, onClose, onChanged }) {
 
   useEffect(() => {
     load();
-    const timer = setInterval(load, 5000);
+    const timer = setInterval(() => { if (!document.hidden) load(); }, 15000);
     return () => clearInterval(timer);
   }, [showAll]);
 

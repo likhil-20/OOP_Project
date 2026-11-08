@@ -105,7 +105,7 @@ class IncidentServiceTest {
         existing.setCategory("NETWORK");
         existing.setPriority("P1");
         existing.setAffectedService(svc);
-        when(incidentRepository.findByStatusNot("CLOSED")).thenReturn(List.of(existing));
+        when(incidentRepository.findDuplicateCandidates("NETWORK", "P1", 1L)).thenReturn(List.of(existing));
 
         IncidentRequest req = new IncidentRequest("user1@x.com", "Network", "Payment page is down", 1L, "HIGH", "HIGH", 200);
         Incident inc = incidentService.reportIncident(req, user(1L, User.UserRole.EMPLOYEE));

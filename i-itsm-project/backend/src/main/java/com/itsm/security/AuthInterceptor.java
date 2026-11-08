@@ -27,6 +27,20 @@ public class AuthInterceptor implements HandlerInterceptor {
     @Autowired private JwtUtil jwtUtil;
     @Autowired private UserRepository userRepository;
 
+    // Remember each user for 10 seconds so we do not hit the database on every request
+    private static final long CACHE_MS = 10_000;
+    private record Cached(Optional<User> user, long at) {}
+    private final java.util.concurrent.ConcurrentHashMap<String, Cached> userCache = new java.util.concurrent.ConcurrentHashMap<>();
+
+    private Optional<User> findUserCached(String email) {
+        long now = System.currentTimeMillis();
+        Cached c = userCache.get(email);
+        if (c != null && now - c.at() < CACHE_MS) return c.user();
+        Optional<User> fresh = userRepository.findByEmail(email);
+        userCache.put(email, new Cached(fresh, now));
+        return fresh;
+    }
+
     @Override
     public boolean preHandle(HttpServletRequest request, HttpServletResponse response, Object handler) {
         // Browsers send an OPTIONS "preflight" request first; it carries no token
@@ -48,7 +62,7 @@ public class AuthInterceptor implements HandlerInterceptor {
         }
 
         // Use the database as the source of truth (deleted / unapproved users lose access instantly)
-        Optional<User> userOpt = userRepository.findByEmail(claims.getSubject());
+        Optional<User> userOpt = findUserCached(claims.getSubject());
         if (userOpt.isEmpty() || !userOpt.get().isApproved()) {
             throw new UnauthorizedException("Account no longer valid.");
         }

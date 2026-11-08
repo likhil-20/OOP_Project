@@ -1,19 +1,39 @@
 server:
   port: 8080
+  compression:
+    enabled: true
+    mime-types: application/json
+    min-response-size: 1024
 
 spring:
   datasource:
     url: jdbc:postgresql://localhost:5432/i_itsm_db
     username: postgres
     password: password
+    hikari:
+      maximum-pool-size: 8
+      minimum-idle: 2
+      idle-timeout: 120000
+      max-lifetime: 600000
+      connection-timeout: 10000
   jpa:
     hibernate:
       ddl-auto: update
-    show-sql: true
+    show-sql: false
+    open-in-view: false
     defer-datasource-initialization: true
     properties:
       hibernate:
         dialect: org.hibernate.dialect.PostgreSQLDialect
+        jdbc:
+          batch_size: 20
+        order_inserts: true
+  task:
+    execution:
+      pool:
+        core-size: 2
+        max-size: 4
+        queue-capacity: 200
 
 app:
   jwt:

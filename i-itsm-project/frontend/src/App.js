@@ -73,6 +73,7 @@ function App() {
       (err) => {
         const isLogin = err.config?.url?.includes('/auth/login');
                 if (err.response?.status === 401 && !isLogin && err.config?.headers?.Authorization) {
+          if (!localStorage.getItem('token')) return Promise.reject(err);  // already logged out by an earlier failed request
           handleLogout();
           alert('Your session expired. Please sign in again.');
         }
@@ -114,46 +115,54 @@ function App() {
     }
   };
 
-  const loadDashboardData = async (u) => {
-    try {
-      const sRes = await axios.get(`${API}/services`);
-      setServices(sRes.data);
-      if (sRes.data.length > 0 && !serviceId) setServiceId(sRes.data[0].id);
-
-      const catRes = await axios.get(`${API}/categories`);
-      setCategories(catRes.data);
-      if (catRes.data.length > 0 && !category) setCategory(catRes.data[0].name);
-      
-      const incRes = await axios.get(`${API}/incidents?email=${u.email}&role=${u.role}`);
-      setIncidents(incRes.data);
-      
-      const nRes = await axios.get(`${API}/notifications?email=${u.email}`);
-      setNotifications([...nRes.data].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt) || b.id - a.id));
-      const mailRes = await axios.get(`${API}/emails`);
-      setMailUnread(mailRes.data.filter(m => !m.opened).length);
-
-      if (u.role === 'ADMINISTRATOR') {
-        const anRes = await axios.get(`${API}/analytics`);
-        setAnalytics(anRes.data);
-        const slaRes = await axios.get(`${API}/admin/sla-violations`);
-        const riskRes = await axios.get(`${API}/admin/sla-risks`);
-        setSlaRisks(riskRes.data);
-        setSlaViolations(slaRes.data);
-        const usrRes = await axios.get(`${API}/admin/users`);
-        setAllUsers(usrRes.data);
-        const slaPolRes = await axios.get(`${API}/admin/sla`);
-        setSlaPolicies(slaPolRes.data);
-        const cfgRes = await axios.get(`${API}/admin/config`);
-        setConfigList(cfgRes.data);
+  const loadDashboardData = async (u, light = false) => {
+    const isAdmin = u.role === 'ADMINISTRATOR';
+    const calls = [
+      axios.get(`${API}/incidents`),
+      axios.get(`${API}/notifications`),
+      axios.get(`${API}/emails`)
+    ];
+    if (!light) {
+      calls.push(axios.get(`${API}/services`), axios.get(`${API}/categories`));
+      if (isAdmin) {
+        calls.push(
+          axios.get(`${API}/analytics`),
+          axios.get(`${API}/admin/sla-violations`),
+          axios.get(`${API}/admin/sla-risks`),
+          axios.get(`${API}/admin/users`),
+          axios.get(`${API}/admin/sla`),
+          axios.get(`${API}/admin/config`)
+        );
       }
-    } catch (e) {
-      console.error(e);
+    }
+    const r = await Promise.allSettled(calls);
+    const data = (i) => (r[i] && r[i].status === 'fulfilled' ? r[i].value.data : null);
+
+    if (data(0)) setIncidents(data(0));
+    if (data(1)) setNotifications([...data(1)].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt) || b.id - a.id));
+    if (data(2)) setMailUnread(data(2).filter(m => !m.opened).length);
+    if (light) return;
+
+    if (data(3)) { setServices(data(3)); if (data(3).length > 0 && !serviceId) setServiceId(data(3)[0].id); }
+    if (data(4)) { setCategories(data(4)); if (data(4).length > 0 && !category) setCategory(data(4)[0].name); }
+    if (isAdmin) {
+      if (data(5)) setAnalytics(data(5));
+      if (data(6)) setSlaViolations(data(6));
+      if (data(7)) setSlaRisks(data(7));
+      if (data(8)) setAllUsers(data(8));
+      if (data(9)) setSlaPolicies(data(9));
+      if (data(10)) setConfigList(data(10));
     }
   };
 
   useEffect(() => {
     if (!user) return;
-    const interval = setInterval(() => loadDashboardData(user), 10000);
+    let tick = 0;
+    const interval = setInterval(() => {
+      if (document.hidden) return;                 // tab not visible: skip
+      tick += 1;
+      loadDashboardData(user, tick % 4 !== 0);     // light refresh, full refresh every ~1 minute
+    }, 15000);
     return () => clearInterval(interval);
   }, [user]);
 

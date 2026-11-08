@@ -5,6 +5,7 @@ import com.itsm.model.User;
 import com.itsm.service.EmailService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.scheduling.annotation.Async;
 
 @Component
 public class EmailObserver implements IncidentObserver {
@@ -12,6 +13,7 @@ public class EmailObserver implements IncidentObserver {
     @Autowired private EmailService emailService;
 
     @Override
+    @Async
     public void update(IncidentEvent e) {
         Incident inc = e.incident();
         String id = "#" + inc.getId();

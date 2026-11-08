@@ -3,7 +3,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "notifications")
+@Table(name = "notifications", indexes = @Index(name = "idx_notification_recipient", columnList = "recipientEmail"))
 public class Notification {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

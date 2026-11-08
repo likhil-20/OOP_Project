@@ -3,7 +3,12 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "incidents")
+@Table(name = "incidents", indexes = {
+    @Index(name = "idx_incident_status", columnList = "status"),
+    @Index(name = "idx_incident_reporter", columnList = "reporter_id"),
+    @Index(name = "idx_incident_technician", columnList = "assigned_technician_id"),
+    @Index(name = "idx_incident_priority", columnList = "priority")
+})
 public class Incident {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

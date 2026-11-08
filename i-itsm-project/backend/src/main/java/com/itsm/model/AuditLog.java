@@ -3,7 +3,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "audit_logs")
+@Table(name = "audit_logs", indexes = @Index(name = "idx_audit_incident", columnList = "incidentId"))
 public class AuditLog {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

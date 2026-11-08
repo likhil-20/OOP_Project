@@ -4,7 +4,7 @@ import jakarta.persistence.*;
 import java.time.LocalDateTime;
 
 @Entity
-@Table(name = "email_logs")
+@Table(name = "email_logs", indexes = @Index(name = "idx_email_recipient", columnList = "recipientEmail"))
 public class EmailLog {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)

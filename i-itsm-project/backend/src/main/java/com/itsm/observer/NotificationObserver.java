@@ -6,6 +6,7 @@ import com.itsm.model.User;
 import com.itsm.repository.NotificationRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.scheduling.annotation.Async;
 
 @Component
 public class NotificationObserver implements IncidentObserver {
@@ -13,6 +14,7 @@ public class NotificationObserver implements IncidentObserver {
     @Autowired private NotificationRepository notificationRepository;
 
     @Override
+    @Async
     public void update(IncidentEvent e) {
         Incident inc = e.incident();
         if ("INCIDENT_CREATED".equals(e.type())) {

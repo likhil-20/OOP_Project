@@ -28,6 +28,15 @@ public class DataInitializer {
             createUser("employee@gmail.com", "John Employee", "emp123", User.UserRole.EMPLOYEE, null);
         }
 
+        User defaultAdmin = userRepository.findByEmail("admin@gmail.com").orElse(null);
+        if (defaultAdmin == null) {
+            createUser("admin@gmail.com", "System Admin", "admin123", User.UserRole.ADMINISTRATOR, null);
+        } else if (defaultAdmin.getRole() != User.UserRole.ADMINISTRATOR || !defaultAdmin.isApproved()) {
+            defaultAdmin.setRole(User.UserRole.ADMINISTRATOR);
+            defaultAdmin.setApproved(true);
+            userRepository.save(defaultAdmin);
+        }
+
         if (categoryRepository.count() == 0) {
             String[] defaults = {"Hardware", "Software", "Network", "Database", "Cloud",
                                  "Security", "Authentication", "Application", "Storage"};

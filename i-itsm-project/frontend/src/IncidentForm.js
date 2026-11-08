@@ -27,6 +27,7 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
   const [suggested, setSuggested] = useState([]);
   const [submitting, setSubmitting] = useState(false);
   const lock = useRef(false);
+  const debounce = useRef(null);
 
   const setField = (field, value) => setForm(f => ({ ...f, [field]: value }));
   const isDirty = JSON.stringify(form) !== JSON.stringify(EMPTY);
@@ -171,7 +172,12 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
         <label style={labelStyle}>Description</label>
         <textarea className="input-field" required rows="3" maxLength={MAX_DESCRIPTION} value={form.description}
           placeholder="Provide clear details regarding the disruption..."
-          onChange={e => { setField('description', e.target.value); fetchSuggestions(form.category, e.target.value); }}></textarea>
+          onChange={e => {
+            const v = e.target.value;
+            setField('description', v);
+            clearTimeout(debounce.current);
+            debounce.current = setTimeout(() => fetchSuggestions(form.category, v), 600);
+          }}></textarea>
         <div style={counterStyle}>{form.description.length}/{MAX_DESCRIPTION}</div>
         {suggested.length > 0 && (
           <div style={{ marginTop: '12px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px' }}>
