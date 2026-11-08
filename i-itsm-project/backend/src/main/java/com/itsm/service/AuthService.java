@@ -9,6 +9,7 @@ import com.itsm.exception.UnauthorizedException;
 import com.itsm.model.User;
 import com.itsm.repository.UserRepository;
 import com.itsm.security.JwtUtil;
+import com.itsm.security.LoginAttemptService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -21,11 +22,22 @@ public class AuthService {
     @Autowired private UserRepository userRepository;
     @Autowired private PasswordEncoder passwordEncoder;
     @Autowired private JwtUtil jwtUtil;
+    @Autowired private LoginAttemptService loginAttemptService;
 
     public LoginResponse login(LoginRequest req) {
+        return login(req, "unknown");
+    }
+
+    public LoginResponse login(LoginRequest req, String clientIp) {
+        String key = req.email().trim().toLowerCase() + "|" + clientIp;
+
+        // Stop right away if this email is locked
+        loginAttemptService.checkNotLocked(key);
+
         Optional<User> userOpt = userRepository.findByEmail(req.email().trim());
         // Same message for "no such user" and "wrong password" so attackers can't find valid emails
         if (userOpt.isEmpty()) {
+            loginAttemptService.recordFailure(key);
             throw new UnauthorizedException("Invalid email or password.");
         }
 
@@ -43,8 +55,12 @@ public class AuthService {
             }
         }
         if (!passwordOk) {
+            loginAttemptService.recordFailure(key);
             throw new UnauthorizedException("Invalid email or password.");
         }
+
+        loginAttemptService.recordSuccess(key);
+
         if (!user.isApproved()) {
             throw new ForbiddenException("Your account is pending administrator approval.");
         }

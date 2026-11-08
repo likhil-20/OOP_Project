@@ -4,9 +4,9 @@ import com.itsm.dto.IncidentRequest;
 import com.itsm.dto.LoginRequest;
 import com.itsm.dto.RegisterRequest;
 import com.itsm.dto.CreateUserRequest;
-import com.itsm.dto.BadRequestException;
-import com.itsm.dto.ConflictException;
-import com.itsm.dto.ResourceNotFoundException;
+import com.itsm.exception.BadRequestException;
+import com.itsm.exception.ConflictException;
+import com.itsm.exception.ResourceNotFoundException;
 import com.itsm.repository.UserRepository;
 import com.itsm.repository.IncidentRepository;
 import com.itsm.repository.IncidentCategoryRepository;
@@ -21,8 +21,6 @@ import org.springframework.web.bind.annotation.*;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-
-import javax.management.Notification;
 
 /**
  * Thin controller: it only receives the request, calls a service, and returns the response.
@@ -58,8 +56,8 @@ public class ITSMController {
     // ---------- Auth (public) ----------
 
     @PostMapping("/auth/login")
-    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req) {
-        return ResponseEntity.ok(authService.login(req));
+    public ResponseEntity<?> login(@Valid @RequestBody LoginRequest req, HttpServletRequest request) {
+        return ResponseEntity.ok(authService.login(req, request.getRemoteAddr()));
     }
 
     @PostMapping("/auth/register")

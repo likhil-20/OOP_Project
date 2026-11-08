@@ -335,11 +335,11 @@ const handleChangeRole = async (u, role) => {
           <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#334155' }}>Email Address</label>
-              <input type="email" required className="input-field" value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="admin@gmail.com" />
+              <input type="email" required className="input-field" value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="admin@gmail.com" maxLength={150} />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#334155' }}>Password</label>
-              <input type="password" required className="input-field" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="••••••••" />
+              <input type="password" required className="input-field" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="••••••••" maxLength={100} />
             </div>
             <button type="submit" className="btn btn-primary" style={{ padding: '12px', fontSize: '15px', marginTop: '8px' }}>Sign In</button>
           </form>
@@ -383,12 +383,12 @@ const handleChangeRole = async (u, role) => {
                     </div>
                     <div>
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Number of Affected Users</label>
-                      <input type="number" min="1" className="input-field" value={affectedUsers}
+                      <input type="number" min="1" max="10000" className="input-field" value={affectedUsers}
                             onChange={e => setAffectedUsers(e.target.value)} />
                     </div>
                     <div style={{ gridColumn: 'span 2' }}>
                       <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Description</label>
-                      <textarea className="input-field" required value={description} onChange={e => { setDescription(e.target.value); fetchSuggestedResolutions(category, e.target.value); }} rows="3" placeholder="Provide clear details regarding the disruption..."></textarea>
+                      <textarea className="input-field" required value={description} onChange={e => { setDescription(e.target.value); fetchSuggestedResolutions(category, e.target.value); }} rows="3" maxLength={2000} placeholder="Provide clear details regarding the disruption..."></textarea>
                       {suggestedResolutions.length > 0 && (
                         <div style={{ marginTop: '12px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px' }}>
                           <div style={{ fontSize: '13px', fontWeight: '700', color: '#4f46e5', marginBottom: '8px' }}>💡 Suggested Resolutions from Similar Past Incidents (Feature G):</div>
@@ -760,15 +760,15 @@ const handleChangeRole = async (u, role) => {
                       <div>
                         <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Enterprise Directory</h3>
                         <form onSubmit={handleCreateUser} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr) auto', gap: '12px', marginBottom: '24px', alignItems: 'center' }}>
-  <input type="text" className="input-field" placeholder="Name" required value={newUser.name} onChange={e => setNewUser({ ...newUser, name: e.target.value })} />
-  <input type="email" className="input-field" placeholder="Email" required value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} />
-  <input type="password" className="input-field" placeholder="Password (min 6)" required minLength={6} value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} />
+  <input type="text" className="input-field" placeholder="Name" maxLength={100} required value={newUser.name} onChange={e => setNewUser({ ...newUser, name: e.target.value })} />
+  <input type="email" className="input-field" 	placeholder="Email" maxLength={150} required value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} />
+  <input type="password" className="input-field" placeholder="Password (min 6)" maxLength={100} required minLength={6} value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} />
   <select className="input-field" value={newUser.role} onChange={e => setNewUser({ ...newUser, role: e.target.value })}>
     <option value="TECHNICIAN">Technician</option>
     <option value="EMPLOYEE">Employee</option>
     <option value="ADMINISTRATOR">Administrator</option>
   </select>
-  <input type="text" className="input-field" placeholder="Skills e.g. NETWORK,DATABASE" disabled={newUser.role !== 'TECHNICIAN'} value={newUser.skills} onChange={e => setNewUser({ ...newUser, skills: e.target.value })} />
+  <input type="text" className="input-field" placeholder="New category name (e.g. Cloud)..." maxLength={50} disabled={newUser.role !== 'TECHNICIAN'} value={newUser.skills} onChange={e => setNewUser({ ...newUser, skills: e.target.value })} />
   <button type="submit" className="btn btn-primary">Add User</button>
 </form>
                         <table className="table-custom">

@@ -9,9 +9,11 @@ import jakarta.validation.constraints.Size;
 public record IncidentRequest(
     @NotBlank(message = "Reporter email is required.")
     @Email(message = "Reporter email format is invalid.")
+    @Size(max = 150, message = "Reporter email must be at most 150 characters.")
     String email,
 
     @NotBlank(message = "Category is required.")
+    @Size(max = 50, message = "Category must be at most 50 characters.")
     String category,
 
     @NotBlank(message = "Description is required.")
@@ -27,7 +29,7 @@ public record IncidentRequest(
     String urgency,
 
     @Min(value = 1, message = "Affected users must be at least 1.")
-    @Max(value = 1000000, message = "Affected users value is too large.")
+    @Max(value = 10000, message = "Affected users cannot be more than 10000.")
     Integer affectedUsers
 
 ) {}
