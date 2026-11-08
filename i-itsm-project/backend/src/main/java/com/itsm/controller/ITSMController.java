@@ -263,6 +263,12 @@ private String cleanSkills(String raw) {
         return notificationService.getFor(currentUser(request));
     }
 
+    @PutMapping("/notifications/read-all")
+    public ResponseEntity<?> markAllNotificationsRead(HttpServletRequest request) {
+        notificationService.markAllRead(currentUser(request));
+        return ResponseEntity.ok().build();
+    }
+
     @PutMapping("/notifications/{id}/read")
     public ResponseEntity<?> markNotificationRead(@PathVariable Long id, HttpServletRequest request) {
         notificationService.markRead(id, currentUser(request));

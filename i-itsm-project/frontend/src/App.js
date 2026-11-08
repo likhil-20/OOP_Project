@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
+import IncidentForm from './IncidentForm';
 
 const API = 'http://localhost:8080/api';
 
@@ -105,6 +106,8 @@ function App() {
       loadDashboardData(u);
     } catch (err) {
       alert(err.response?.data?.error || "Login failed. Please check credentials or approval status.");
+      setEmailInput('');
+      setPasswordInput('');
     }
   };
 
@@ -122,7 +125,7 @@ function App() {
       setIncidents(incRes.data);
       
       const nRes = await axios.get(`${API}/notifications?email=${u.email}`);
-      setNotifications(nRes.data);
+      setNotifications([...nRes.data].sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt) || b.id - a.id));
 
       if (u.role === 'ADMINISTRATOR') {
         const anRes = await axios.get(`${API}/analytics`);
@@ -266,6 +269,11 @@ const handleChangeRole = async (u, role) => {
     }
   };
 
+  const markAllNotifRead = async () => {
+    await axios.put(`${API}/notifications/read-all`);
+    loadDashboardData(user);
+  };
+
   const markNotifRead = async (id) => {
     await axios.put(`${API}/notifications/${id}/read`);
     loadDashboardData(user);
@@ -355,14 +363,14 @@ const handleChangeRole = async (u, role) => {
             Sign in to access your enterprise portal
           </p>
 
-          <form onSubmit={handleLogin} style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
+          <form onSubmit={handleLogin} autoComplete="off" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#334155' }}>Email Address</label>
-              <input type="email" required className="input-field" value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="admin@gmail.com" maxLength={150} />
+              <input type="email" required className="input-field" value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="Enter your email" maxLength={150} autoComplete="off" name="itsm-login-email" />
             </div>
             <div>
               <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#334155' }}>Password</label>
-              <input type="password" required className="input-field" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="••••••••" maxLength={100} />
+              <input type="password" required className="input-field" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Enter your password" maxLength={100} autoComplete="new-password" name="itsm-login-password" />
             </div>
             <button type="submit" className="btn btn-primary" style={{ padding: '12px', fontSize: '15px', marginTop: '8px' }}>Sign In</button>
           </form>
@@ -375,59 +383,7 @@ const handleChangeRole = async (u, role) => {
               <div>
                 <div className="dashboard-card">
                   <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', color: '#0f172a', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>Report New IT Incident</h2>
-                  <form onSubmit={handleCreateIncident} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Category</label>
-                      <select className="input-field" value={category} onChange={e => setCategory(e.target.value)}>
-                        {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Affected Service</label>
-                      <select className="input-field" value={serviceId} onChange={e => setServiceId(e.target.value)}>
-                        {services.map(s => <option key={s.id} value={s.id}>{s.serviceName} ({s.businessCriticality})</option>)}
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Impact</label>
-                      <select className="input-field" value={impact} onChange={e => setImpact(e.target.value)}>
-                        <option value="HIGH">High</option>
-                        <option value="MEDIUM">Medium</option>
-                        <option value="LOW">Low</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Urgency</label>
-                      <select className="input-field" value={urgency} onChange={e => setUrgency(e.target.value)}>
-                        <option value="HIGH">High</option>
-                        <option value="MEDIUM">Medium</option>
-                        <option value="LOW">Low</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Number of Affected Users</label>
-                      <input type="number" min="1" max="10000" className="input-field" value={affectedUsers}
-                            onChange={e => setAffectedUsers(e.target.value)} />
-                    </div>
-                    <div style={{ gridColumn: 'span 2' }}>
-                      <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' }}>Description</label>
-                      <textarea className="input-field" required value={description} onChange={e => { setDescription(e.target.value); fetchSuggestedResolutions(category, e.target.value); }} rows="3" maxLength={2000} placeholder="Provide clear details regarding the disruption..."></textarea>
-                      {suggestedResolutions.length > 0 && (
-                        <div style={{ marginTop: '12px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px' }}>
-                          <div style={{ fontSize: '13px', fontWeight: '700', color: '#4f46e5', marginBottom: '8px' }}>💡 Suggested Resolutions from Similar Past Incidents (Feature G):</div>
-                          {suggestedResolutions.map((s, idx) => (
-                            <div key={idx} style={{ fontSize: '13px', padding: '6px 0', borderBottom: idx < suggestedResolutions.length - 1 ? '1px dashed #e2e8f0' : 'none' }}>
-                              <div><strong>Past Issue #{s.matchedIncidentId}:</strong> {s.pastDescription}</div>
-                              <div style={{ color: '#166534', marginTop: '2px' }}><strong>Resolution:</strong> {s.resolutionDetails}</div>
-                            </div>
-                          ))}
-                        </div>
-                      )}
-                    </div>
-                    <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end' }}>
-                      <button type="submit" className="btn btn-primary" style={{ padding: '10px 24px' }} disabled={submitting}>{submitting ? 'Submitting...' : 'Submit Ticket'}</button>
-                    </div>
-                  </form>
+                  <IncidentForm user={user} categories={categories} services={services} onSubmitted={() => loadDashboardData(user)} />
                 </div>
 
                 <div className="dashboard-card" style={{ display: 'flex', gap: '12px', alignItems: 'center', background: '#fff', flexWrap: 'wrap' }}>
@@ -981,6 +937,10 @@ const handleChangeRole = async (u, role) => {
                 )}
               </div>
               
+              {notifications.filter(n => !n.read).length > 0 && (
+                <button onClick={markAllNotifRead} className="btn btn-secondary" style={{ width: '100%', marginBottom: '12px' }}>Mark all as read</button>
+              )}
+
               {notifications.filter(n => !n.read).length === 0 ? (
                 <div style={{ textAlign: 'center', color: '#94a3b8', padding: '24px 0', fontSize: '14px' }}>
                   You're all caught up!

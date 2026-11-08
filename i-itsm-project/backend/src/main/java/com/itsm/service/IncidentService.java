@@ -64,7 +64,7 @@ public class IncidentService {
 
     public Incident reportIncident(IncidentRequest req, User reporter) {
         String category = req.category().trim();
-        if (!categoryRepository.existsByNameIgnoreCase(category)) {
+        if (!"OTHERS".equalsIgnoreCase(category) && !categoryRepository.existsByNameIgnoreCase(category)) {
             throw new BadRequestException("Unknown category: " + category);
         }
 

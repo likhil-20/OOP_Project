@@ -19,6 +19,14 @@ public class NotificationService {
         return notificationRepository.findByRecipientEmail(me.getEmail());
     }
 
+    public void markAllRead(User me) {
+        List<Notification> mine = notificationRepository.findByRecipientEmail(me.getEmail());
+        for (Notification n : mine) {
+            if (!n.isRead()) n.setRead(true);
+        }
+        notificationRepository.saveAll(mine);
+    }
+
     public void markRead(Long id, User me) {
         Notification n = notificationRepository.findById(id)
             .orElseThrow(() -> new ResourceNotFoundException("Notification not found."));
