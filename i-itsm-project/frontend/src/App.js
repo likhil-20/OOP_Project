@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 
 const API = 'http://localhost:8080/api';
@@ -37,6 +37,8 @@ function App() {
   const [urgency, setUrgency] = useState('HIGH');
   const [affectedUsers, setAffectedUsers] = useState(1);
   const [description, setDescription] = useState('');
+  const submittingIncident = useRef(false);
+  const [submitting, setSubmitting] = useState(false);
 
   // Advanced Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');
@@ -161,18 +163,24 @@ function App() {
   };
 
   const handleCreateIncident = async (e) => {
-    e.preventDefault();
-    if (!serviceId) return alert("Please select an affected IT service.");
-    try {
-      await axios.post(`${API}/incidents`, { email: user.email, category, serviceId, impact, urgency, description, affectedUsers: Number(affectedUsers) });
-      setDescription('');
-      setAffectedUsers(1);
-      loadDashboardData(user);
-      alert("Incident submitted successfully!");
-    } catch (err) {
-      alert(err.response?.data?.error || "Failed to create incident.");
-    }
-  };
+  e.preventDefault();
+  if (submittingIncident.current) return;
+  if (!serviceId) return alert("Please select an affected IT service.");
+  submittingIncident.current = true;
+  setSubmitting(true);
+  try {
+    await axios.post(`${API}/incidents`, { email: user.email, category, serviceId, impact, urgency, description, affectedUsers: Number(affectedUsers) });
+    setDescription('');
+    setAffectedUsers(1);
+    loadDashboardData(user);
+    alert("Incident submitted successfully!");
+  } catch (err) {
+    alert(err.response?.data?.error || "Failed to create incident.");
+  } finally {
+    submittingIncident.current = false;
+    setSubmitting(false);
+  }
+};
 
   const handleStatusUpdate = async (id, newStatus, extra = {}) => {
     try {
@@ -417,7 +425,7 @@ const handleChangeRole = async (u, role) => {
                       )}
                     </div>
                     <div style={{ gridColumn: 'span 2', display: 'flex', justifyContent: 'flex-end' }}>
-                      <button type="submit" className="btn btn-primary" style={{ padding: '10px 24px' }}>Submit Ticket</button>
+                      <button type="submit" className="btn btn-primary" style={{ padding: '10px 24px' }} disabled={submitting}>{submitting ? 'Submitting...' : 'Submit Ticket'}</button>
                     </div>
                   </form>
                 </div>
@@ -1015,7 +1023,7 @@ const handleChangeRole = async (u, role) => {
                     <div style={{ fontSize: '13px', color: '#334155' }}>
                       {log.description}
                     </div>
-                    {log.previousState && log.newState && (
+                    {log.previousState && log.newState && log.previousState !== log.newState && (
                       <div style={{ fontSize: '12px', marginTop: '8px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
                         State: <span className="pill pill-status">{log.previousState}</span> &rarr; <span className="pill pill-status">{log.newState}</span>
                       </div>

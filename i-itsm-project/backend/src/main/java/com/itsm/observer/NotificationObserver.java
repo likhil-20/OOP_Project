@@ -20,7 +20,12 @@ public class NotificationObserver implements IncidentObserver {
             send(inc.getAssignedTechnician(), "Assigned Incident #" + inc.getId() + " (" + inc.getPriority() + ")");
         } else if ("STATUS_UPDATE".equals(e.type())) {
             send(inc.getReporter(), "Incident #" + inc.getId() + " status: " + e.newState());
-        }
+        } else if ("INFO_UPDATE".equals(e.type())) {
+    boolean actorIsReporter = inc.getReporter() != null
+        && e.actorEmail().equals(inc.getReporter().getEmail());
+    User target = actorIsReporter ? inc.getAssignedTechnician() : inc.getReporter();
+    send(target, "Incident #" + inc.getId() + ": " + e.description());
+}
     }
 
     private void send(User user, String message) {

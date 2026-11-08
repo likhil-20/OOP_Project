@@ -45,3 +45,9 @@ docker compose down
 
 ### Shared Google Sheet:
 [Checklist](https://docs.google.com/spreadsheets/d/1SebWLuT8Mb3m15Qeci5hlAUBrBwvPxWydhXxizJZbao/edit?usp=sharing)
+
+## Run Tests
+```bash 
+cd i-itsm-project\backend
+docker run --rm -v "${PWD}:/app" -v maven-repo:/root/.m2 -w /app maven:3.9-eclipse-temurin-17 mvn test
+```

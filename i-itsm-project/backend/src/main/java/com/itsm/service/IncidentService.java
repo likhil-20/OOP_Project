@@ -316,8 +316,20 @@ public class IncidentService {
 
         Incident updated = incidentRepository.save(inc);
 
-        eventPublisher.publish(new IncidentEvent(updated, "STATUS_UPDATE", me.getEmail(),
-            oldStatus, newStatus, "Updated status to " + newStatus));
+        if (oldStatus.equals(newStatus)) {
+            boolean infoExchange = payload.containsKey("techRequestInfo") || payload.containsKey("additionalInfo");
+            String type = infoExchange ? "INFO_UPDATE" : "NOTES_UPDATE";
+            String desc = infoExchange
+                ? (payload.containsKey("techRequestInfo")
+                    ? "Technician requested additional information"
+                    : "Employee provided additional information")
+                : "Investigation notes updated";
+                eventPublisher.publish(new IncidentEvent(updated, type, me.getEmail(), oldStatus, newStatus, desc));
+        } 
+        else {
+            eventPublisher.publish(new IncidentEvent(updated, "STATUS_UPDATE", me.getEmail(),
+                oldStatus, newStatus, "Updated status to " + newStatus));
+        }
 
         return updated;
     }

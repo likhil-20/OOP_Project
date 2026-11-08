@@ -49,32 +49,37 @@
        }
 
        private void escalate(Incident inc, String reason) {
-           String oldPriority = inc.getPriority();
-           String newPriority = raise(oldPriority);
+    String oldPriority = inc.getPriority();
+    boolean alreadyTop = "P1".equals(oldPriority);
+    String newPriority = raise(oldPriority);
 
-           inc.setPriority(newPriority);
-           inc.setEscalated(true);
-           inc.setEscalatedAt(LocalDateTime.now());
-           incidentRepository.save(inc);
+    inc.setPriority(newPriority);
+    inc.setEscalated(true);
+    inc.setEscalatedAt(LocalDateTime.now());
+    incidentRepository.save(inc);
 
-           AuditLog audit = new AuditLog();
-           audit.setIncidentId(inc.getId());
-           audit.setUserEmail("system");
-           audit.setActionPerformed("AUTO_ESCALATION");
-           audit.setPreviousState(inc.getStatus());
-           audit.setNewState(inc.getStatus());
-           audit.setDescription("Priority " + oldPriority + " -> " + newPriority + ". " + reason);
-           auditRepository.save(audit);
+    AuditLog audit = new AuditLog();
+    audit.setIncidentId(inc.getId());
+    audit.setUserEmail("system");
+    audit.setActionPerformed(alreadyTop ? "SLA_BREACH" : "AUTO_ESCALATION");
+    audit.setPreviousState(inc.getStatus());
+    audit.setNewState(inc.getStatus());
+    audit.setDescription(alreadyTop
+        ? "SLA breached. Priority is already P1, so it cannot be raised. " + reason
+        : "Priority " + oldPriority + " -> " + newPriority + ". " + reason);
+    auditRepository.save(audit);
 
-           String message = "Incident #" + inc.getId() + " was ESCALATED to " + newPriority + ". " + reason + ".";
-           if (inc.getReporter() != null) sendInApp(inc.getReporter().getEmail(), message);
-           if (inc.getAssignedTechnician() != null) sendInApp(inc.getAssignedTechnician().getEmail(), message);
-           for (User admin : userRepository.findByRole(User.UserRole.ADMINISTRATOR)) {
-               sendInApp(admin.getEmail(), message);
-           }
+    String message = alreadyTop
+        ? "Incident #" + inc.getId() + " breached its SLA (already P1, highest priority). " + reason + "."
+        : "Incident #" + inc.getId() + " was ESCALATED to " + newPriority + ". " + reason + ".";
+    if (inc.getReporter() != null) sendInApp(inc.getReporter().getEmail(), message);
+    if (inc.getAssignedTechnician() != null) sendInApp(inc.getAssignedTechnician().getEmail(), message);
+    for (User admin : userRepository.findByRole(User.UserRole.ADMINISTRATOR)) {
+        sendInApp(admin.getEmail(), message);
+    }
 
-           System.out.println("[ESCALATION] " + message);
-       }
+    System.out.println("[ESCALATION] " + message);
+}
 
        // One step more urgent. P1 stays P1.
        private String raise(String priority) {
