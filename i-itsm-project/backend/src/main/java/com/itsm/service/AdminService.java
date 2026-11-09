@@ -20,6 +20,7 @@ public class AdminService {
     @Autowired private SlaPolicyRepository slaPolicyRepository;
     @Autowired private SystemConfigurationRepository configRepository;
     @Autowired private IncidentCategoryRepository categoryRepository;
+    @Autowired private IncidentRepository incidentRepository;
 
     // ---------- Categories ----------
 
@@ -62,6 +63,22 @@ public class AdminService {
         if (me.getId().equals(id)) {
             throw new BadRequestException("You cannot delete your own account.");
         }
+            User target = userRepository.findById(id)
+        .orElseThrow(() -> new ResourceNotFoundException("User not found."));
+
+    if (target.getRole() == User.UserRole.TECHNICIAN) {
+        List<Incident> mine = incidentRepository.findByAssignedTechnicianId(id);
+        boolean hasActive = mine.stream()
+            .anyMatch(i -> !List.of("RESOLVED", "VERIFIED", "CLOSED").contains(i.getStatus()));
+        if (hasActive) {
+            throw new BadRequestException("This technician still has active incidents. Resolve or reassign them first.");
+        }
+        // Finished incidents: keep them, just detach the technician so the delete is allowed
+        for (Incident i : mine) {
+            i.setAssignedTechnician(null);
+            incidentRepository.save(i);
+        }
+    }
         userRepository.deleteById(id);
     }
 

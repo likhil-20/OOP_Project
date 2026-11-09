@@ -572,7 +572,7 @@ const handleChangeRole = async (u, role) => {
                                 if (notes) handleStatusUpdate(inc.id, inc.status, { investigationNotes: notes });
                               }} className="btn btn-secondary">Notes</button>
                               
-                              {inc.status !== 'RESOLVED' && inc.status !== 'NEW' && inc.status !== 'CLASSIFIED' && (
+                              {(inc.status === 'ACKNOWLEDGED' || inc.status === 'IN_PROGRESS') && (
                                 <>
                                   <button onClick={() => {
                                     const req = prompt("Request additional info from employee:");
