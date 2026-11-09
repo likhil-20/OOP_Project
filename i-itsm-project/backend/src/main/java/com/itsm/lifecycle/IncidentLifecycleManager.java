@@ -20,7 +20,7 @@ public class IncidentLifecycleManager {
     private static final Map<State, Set<State>> ALLOWED_TRANSITIONS = Map.of(
         State.NEW, EnumSet.of(State.CLASSIFIED),
         State.CLASSIFIED, EnumSet.of(State.ASSIGNED),
-        State.ASSIGNED, EnumSet.of(State.ACKNOWLEDGED),
+        State.ASSIGNED, EnumSet.of(State.ACKNOWLEDGED, State.RESOLVED),
         State.ACKNOWLEDGED, EnumSet.of(State.IN_PROGRESS, State.RESOLVED),
         State.IN_PROGRESS, EnumSet.of(State.RESOLVED),
         State.RESOLVED, EnumSet.of(State.VERIFIED, State.CLOSED),

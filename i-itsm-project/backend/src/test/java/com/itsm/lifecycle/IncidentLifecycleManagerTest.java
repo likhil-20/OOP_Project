@@ -18,6 +18,7 @@ class IncidentLifecycleManagerTest {
         assertTrue(IncidentLifecycleManager.isValidTransition("IN_PROGRESS", "RESOLVED"));
         assertTrue(IncidentLifecycleManager.isValidTransition("RESOLVED", "VERIFIED"));
         assertTrue(IncidentLifecycleManager.isValidTransition("VERIFIED", "CLOSED"));
+        assertTrue(IncidentLifecycleManager.isValidTransition("ASSIGNED", "RESOLVED"));
     }
 
     @Test
@@ -26,7 +27,6 @@ class IncidentLifecycleManagerTest {
         assertFalse(IncidentLifecycleManager.isValidTransition("NEW", "RESOLVED"));
         assertFalse(IncidentLifecycleManager.isValidTransition("CLASSIFIED", "IN_PROGRESS"));
         assertFalse(IncidentLifecycleManager.isValidTransition("IN_PROGRESS", "ASSIGNED"));
-        assertFalse(IncidentLifecycleManager.isValidTransition("ASSIGNED", "RESOLVED"));
     }
 
     @Test
