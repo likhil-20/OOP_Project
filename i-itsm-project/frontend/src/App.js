@@ -19,6 +19,7 @@ function App() {
   const [analytics, setAnalytics] = useState(null);
   const [slaViolations, setSlaViolations] = useState([]);
   const [slaRisks, setSlaRisks] = useState([]);
+    const [slaHistory, setSlaHistory] = useState([]);
   const [suggestedResolutions, setSuggestedResolutions] = useState([]);
 
   // Audit Trail State
@@ -131,7 +132,8 @@ function App() {
           axios.get(`${API}/admin/sla-risks`),
           axios.get(`${API}/admin/users`),
           axios.get(`${API}/admin/sla`),
-          axios.get(`${API}/admin/config`)
+                    axios.get(`${API}/admin/config`),
+          axios.get(`${API}/admin/sla-violation-history`)
         );
       }
     }
@@ -152,6 +154,7 @@ function App() {
       if (data(8)) setAllUsers(data(8));
       if (data(9)) setSlaPolicies(data(9));
       if (data(10)) setConfigList(data(10));
+      if (data(11)) setSlaHistory(data(11));
     }
   };
 
@@ -927,6 +930,27 @@ const handleChangeRole = async (u, role) => {
                                   <td><span className="pill" style={{ background: '#ef4444', color: 'white' }}>{inc.priority}</span></td>
                                   <td>{inc.description}</td>
                                   <td style={{ color: '#ef4444', fontWeight: '600' }}>{new Date(inc.slaResolutionDeadline).toLocaleString()}</td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        )}
+                                                <h3 style={{ fontSize: '16px', fontWeight: '700', margin: '32px 0 16px 0' }}>Violation History (saved)</h3>
+                        {slaHistory.length === 0 ? (
+                          <div style={{ color: '#94a3b8', textAlign: 'center', padding: '16px' }}>No violations recorded yet.</div>
+                        ) : (
+                          <table className="table-custom">
+                            <thead>
+                              <tr><th>Incident</th><th>Type</th><th>Priority</th><th>Deadline</th><th>Detected</th></tr>
+                            </thead>
+                            <tbody>
+                              {slaHistory.map(v => (
+                                <tr key={v.id}>
+                                  <td style={{ fontWeight: '600' }}>#{v.incidentId}</td>
+                                  <td><span className="pill pill-status">{v.type}</span></td>
+                                  <td><span className={`pill pill-${v.priority}`}>{v.priority}</span></td>
+                                  <td>{new Date(v.deadline).toLocaleString()}</td>
+                                  <td style={{ color: '#ef4444', fontWeight: '600' }}>{new Date(v.detectedAt).toLocaleString()}</td>
                                 </tr>
                               ))}
                             </tbody>

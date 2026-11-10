@@ -38,6 +38,7 @@ public class ITSMController {
     @Autowired private NotificationService notificationService;
     @Autowired private UserRepository userRepository;
 @Autowired private IncidentRepository incidentRepository;
+@Autowired private com.itsm.repository.SlaViolationRepository slaViolationRepository;
 @Autowired private IncidentCategoryRepository categoryRepository;
 @Autowired private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
    @Autowired private com.itsm.service.EmailService emailService;
@@ -262,6 +263,11 @@ private String cleanSkills(String raw) {
     @GetMapping("/admin/sla-risks")
     public List<Map<String, Object>> getSlaRisks() {
         return analyticsService.getSlaRisks();
+    }
+
+    @GetMapping("/admin/sla-violation-history")
+    public List<SlaViolation> getSlaViolationHistory() {
+        return slaViolationRepository.findAllByOrderByDetectedAtDesc();
     }
 
     // ---------- Notifications & audit ----------

@@ -297,6 +297,10 @@ public class IncidentService {
 
         // Apply changes
         inc.setStatus(newStatus);
+                if (!newStatus.equals(oldStatus) && inc.getAcknowledgedAt() == null
+                && ("ACKNOWLEDGED".equals(newStatus) || "IN_PROGRESS".equals(newStatus) || "RESOLVED".equals(newStatus))) {
+            inc.setAcknowledgedAt(LocalDateTime.now());
+        }
         if (payload.containsKey("investigationNotes")) {
             inc.setInvestigationNotes(asText(payload.get("investigationNotes")));
         }

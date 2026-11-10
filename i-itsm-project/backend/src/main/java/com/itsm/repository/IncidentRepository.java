@@ -49,6 +49,9 @@ public interface IncidentRepository extends JpaRepository<Incident, Long> {
          + "and i.slaResolutionDeadline is not null and i.slaResolutionDeadline < :limit")
     List<Incident> findOpenWithDeadlineBefore(@Param("finished") Collection<String> finished,
                                               @Param("limit") LocalDateTime limit);
+     @EntityGraph(attributePaths = {"reporter", "assignedTechnician", "affectedService"})
+    @Query("select i from Incident i where i.status not in :finished")
+    List<Incident> findOpen(@Param("finished") Collection<String> finished);
 
     @EntityGraph(attributePaths = {"reporter", "assignedTechnician", "affectedService"})
     @Query("select i from Incident i where i.status not in :finished "

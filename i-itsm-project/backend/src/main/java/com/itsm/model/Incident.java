@@ -68,6 +68,11 @@ public class Incident {
     private Long duplicateOfIncidentId;
     private Boolean escalated = false;
     private LocalDateTime escalatedAt;
+    private LocalDateTime acknowledgedAt;
+    private Boolean responseBreached = false;
+    private Boolean resolutionBreached = false;
+    private Boolean responseWarningSent = false;
+    private Boolean resolutionWarningSent = false;
 
     private LocalDateTime createdAt = LocalDateTime.now();
 
@@ -118,4 +123,14 @@ public class Incident {
     public void setEscalated(Boolean escalated) { this.escalated = escalated; }
     public LocalDateTime getEscalatedAt() { return escalatedAt; }
     public void setEscalatedAt(LocalDateTime escalatedAt) { this.escalatedAt = escalatedAt; }
+        public LocalDateTime getAcknowledgedAt() { return acknowledgedAt; }
+    public void setAcknowledgedAt(LocalDateTime acknowledgedAt) { this.acknowledgedAt = acknowledgedAt; }
+    public Boolean getResponseBreached() { return responseBreached; }
+    public void setResponseBreached(Boolean responseBreached) { this.responseBreached = responseBreached; }
+    public Boolean getResolutionBreached() { return resolutionBreached; }
+    public void setResolutionBreached(Boolean resolutionBreached) { this.resolutionBreached = resolutionBreached; }
+    public Boolean getResponseWarningSent() { return responseWarningSent; }
+    public void setResponseWarningSent(Boolean responseWarningSent) { this.responseWarningSent = responseWarningSent; }
+    public Boolean getResolutionWarningSent() { return resolutionWarningSent; }
+    public void setResolutionWarningSent(Boolean resolutionWarningSent) { this.resolutionWarningSent = resolutionWarningSent; }
 }
