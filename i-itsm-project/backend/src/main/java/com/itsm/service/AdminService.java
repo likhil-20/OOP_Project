@@ -37,9 +37,21 @@ public class AdminService {
     }
 
     public void deleteCategory(Long id) {
-        if (!categoryRepository.existsById(id)) {
-            throw new ResourceNotFoundException("Category not found.");
+        IncidentCategory cat = categoryRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("Category not found."));
+
+        // Remove this skill from every technician who had it
+        for (User u : userRepository.findByRole(User.UserRole.TECHNICIAN)) {
+            if (u.getSkills() == null) continue;
+            List<String> kept = new java.util.ArrayList<>();
+            for (String s : u.getSkills().split(",")) {
+                String skill = s.trim();
+                if (!skill.isEmpty() && !skill.equalsIgnoreCase(cat.getName().trim())) kept.add(skill);
+            }
+            u.setSkills(kept.isEmpty() ? null : String.join(",", kept));
+            userRepository.save(u);
         }
+
         categoryRepository.deleteById(id);
     }
 

@@ -27,7 +27,9 @@ public class IncidentService {
     @Autowired private IncidentRepository incidentRepository;
     @Autowired private IncidentCategoryRepository categoryRepository;
     @Autowired private AuditLogRepository auditRepository;
+    @Autowired private NotificationRepository notificationRepository;
     @Autowired private IncidentEventPublisher eventPublisher;
+    @Autowired private EmailService emailService;
 
     // ---------- Who can see what ----------
 
@@ -141,9 +143,23 @@ public class IncidentService {
             inc.setStatus("ASSIGNED");
             assignedTech.setCurrentLoad(assignedTech.getCurrentLoad() + 1);
             userRepository.save(assignedTech);
+
+            // Skill-based mode, but nobody has this skill: warn the admins
+            if (!"LOAD_BASED".equals(strategyType)
+                    && !SkillBasedAssignment.hasSkill(assignedTech, inc.getCategory())) {
+                String message = "No technician has the skill " + inc.getCategory()
+                    + ". A new " + inc.getCategory() + " incident was given to "
+                    + assignedTech.getName() + " (least busy). Please add this skill to a technician.";
+                for (User admin : userRepository.findByRole(User.UserRole.ADMINISTRATOR)) {
+                    Notification n = new Notification();
+                    n.setRecipientEmail(admin.getEmail());
+                    n.setMessage(message);
+                    notificationRepository.save(n);
+                    emailService.send(admin.getEmail(), "[I-ITSM] No technician has the skill " + inc.getCategory(), message);
+                }
+            }
         }
     }
-
     // ---------- Priority calculation ----------
 
     private static int level(String v) {
