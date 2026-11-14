@@ -5,7 +5,7 @@
 | Frontend | React | 18.2 | Component-based UI, state hooks for role dashboards |
 | Frontend build | react-scripts (CRA) | 5.0.1 | Zero-config dev server and build |
 | HTTP client | Axios | 1.x | Interceptors for the JWT header and 401 handling |
-| Voice input | Web Speech API (browser) | n/a | No library or cost; supports English, Hindi, Telugu |
+| Voice input | MediaRecorder + Web Audio API (browser), Gemini transcription | n/a | Works in every modern browser; Gemini understands English, Hindi and Telugu | n/a | No library or cost; supports English, Hindi, Telugu |
 | Backend | Spring Boot (Web) | 3.2.5 | REST controllers, dependency injection, scheduling, async |
 | Language | Java | 17 | OOP features: records, interfaces, enums |
 | Persistence | Spring Data JPA / Hibernate | via Boot | Entity mapping, `ddl-auto: update` |
@@ -43,5 +43,5 @@
 - Duplicate detection is an exact case-insensitive description match with the same category, service and priority; text similarity would catch rephrased reports.
 - Frontend polls (15 s, Mission Control 5 s); WebSockets would be more efficient.
 - Suggested resolutions use keyword matching; embeddings could improve them.
-- Voice recognition in Chrome sends audio to Google's servers; the Gemini call sends the incident text to Google.
+- Voice recordings (up to 1 minute) and incident text are sent to Google's Gemini API; voice input stops working if the Gemini key is missing.
 - Escalation only raises priority; a full Technician → Team Lead → Manager chain is future work.

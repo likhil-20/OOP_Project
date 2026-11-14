@@ -68,6 +68,38 @@ public class GeminiClassifier implements IncidentClassifier {
         }
     }
 
+    /** Sends a short audio clip to Gemini and returns the spoken words as text. */
+    public String transcribe(String base64Audio, String mimeType) {
+        if (!isConfigured()) throw new IllegalStateException("Gemini API key is not set.");
+        try {
+            String instruction = "Transcribe this audio exactly as spoken. It may be English, Hindi or Telugu; "
+                + "keep the original language and script. Reply with ONLY the transcript. "
+                + "If there is no speech, reply with an empty string.";
+            Map<String, Object> body = Map.of(
+                "contents", List.of(Map.of("parts", List.of(
+                    Map.of("text", instruction),
+                    Map.of("inlineData", Map.of("mimeType", mimeType, "data", base64Audio))))),
+                "generationConfig", Map.of("temperature", 0));
+
+            HttpRequest request = HttpRequest.newBuilder()
+                .uri(URI.create("https://generativelanguage.googleapis.com/v1beta/models/" + model + ":generateContent"))
+                .timeout(Duration.ofSeconds(30))
+                .header("Content-Type", "application/json")
+                .header("x-goog-api-key", apiKey)
+                .POST(HttpRequest.BodyPublishers.ofString(MAPPER.writeValueAsString(body)))
+                .build();
+
+            HttpResponse<String> response = http.send(request, HttpResponse.BodyHandlers.ofString());
+            if (response.statusCode() != 200) {
+                throw new IllegalStateException("Gemini returned HTTP " + response.statusCode());
+            }
+            return MAPPER.readTree(response.body())
+                .path("candidates").path(0).path("content").path("parts").path(0).path("text").asText().trim();
+        } catch (Exception e) {
+            throw new IllegalStateException("Gemini transcription failed: " + e.getMessage(), e);
+        }
+    }
+
     private String prompt(String description, List<String> categories, List<ItService> services) {
         String serviceLines = services.stream()
             .map(s -> "id=" + s.getId() + " " + s.getServiceName() + " (criticality " + s.getBusinessCriticality() + ")")

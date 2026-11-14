@@ -3,6 +3,7 @@ package com.itsm.service;
 import com.itsm.ai.GeminiClassifier;
 import com.itsm.ai.KeywordClassifier;
 import com.itsm.ai.TriageResult;
+import com.itsm.exception.BadRequestException;
 import com.itsm.model.IncidentCategory;
 import com.itsm.model.ItService;
 import com.itsm.repository.IncidentCategoryRepository;
@@ -65,5 +66,17 @@ public class TriageService {
             }
         }
         return keyword.classify(text, categories, services);
+    }
+    
+    public String transcribe(String base64Audio, String mimeType) {
+        if (!gemini.isConfigured()) {
+            throw new BadRequestException("Voice input needs the Gemini key. Please type the problem instead.");
+        }
+        try {
+            return gemini.transcribe(base64Audio, mimeType);
+        } catch (Exception e) {
+            log.warn("Transcription failed: {}", e.getMessage());
+            throw new BadRequestException("Could not turn the recording into text. Please try again or type it.");
+        }
     }
 }

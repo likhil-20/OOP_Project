@@ -22,6 +22,39 @@ const EMPTY = {
 const labelStyle = { display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' };
 const counterStyle = { fontSize: '11px', color: '#94a3b8', textAlign: 'right', marginTop: '4px' };
 
+// Converts a recording into a small 16 kHz mono WAV file (base64) that Gemini accepts
+async function blobToWavBase64(blob) {
+  const ctx = new (window.AudioContext || window.webkitAudioContext)();
+  const decoded = await ctx.decodeAudioData(await blob.arrayBuffer());
+  ctx.close();
+  const rate = 16000;
+  const offline = new OfflineAudioContext(1, Math.ceil(decoded.duration * rate), rate);
+  const src = offline.createBufferSource();
+  src.buffer = decoded;
+  src.connect(offline.destination);
+  src.start();
+  const pcm = (await offline.startRendering()).getChannelData(0);
+
+  const view = new DataView(new ArrayBuffer(44 + pcm.length * 2));
+  const text = (o, s) => { for (let i = 0; i < s.length; i++) view.setUint8(o + i, s.charCodeAt(i)); };
+  text(0, 'RIFF'); view.setUint32(4, 36 + pcm.length * 2, true); text(8, 'WAVE'); text(12, 'fmt ');
+  view.setUint32(16, 16, true); view.setUint16(20, 1, true); view.setUint16(22, 1, true);
+  view.setUint32(24, rate, true); view.setUint32(28, rate * 2, true);
+  view.setUint16(32, 2, true); view.setUint16(34, 16, true);
+  text(36, 'data'); view.setUint32(40, pcm.length * 2, true);
+  for (let i = 0; i < pcm.length; i++) {
+    const s = Math.max(-1, Math.min(1, pcm[i]));
+    view.setInt16(44 + i * 2, s < 0 ? s * 0x8000 : s * 0x7fff, true);
+  }
+
+  const bytes = new Uint8Array(view.buffer);
+  let bin = '';
+  for (let i = 0; i < bytes.length; i += 0x8000) {
+    bin += String.fromCharCode.apply(null, bytes.subarray(i, i + 0x8000));
+  }
+  return btoa(bin);
+}
+
 export default function IncidentForm({ user, categories, services, onSubmitted }) {
   const [form, setForm] = useState(EMPTY);
   const [suggested, setSuggested] = useState([]);
@@ -33,12 +66,20 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
   const [triage, setTriage] = useState(null);
   const [analyzing, setAnalyzing] = useState(false);
   const [listening, setListening] = useState(false);
-  const [lang, setLang] = useState('en-IN');
-  const recognition = useRef(null);
-  const SpeechRec = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
+  const [transcribing, setTranscribing] = useState(false);
+  const recorder = useRef(null);
+  const chunks = useRef([]);
+  const cancelled = useRef(false);
+  const stopTimer = useRef(null);
+  const descRef = useRef('');
+  descRef.current = form.description;
 
   useEffect(() => () => {
-    if (recognition.current) { recognition.current.onend = null; recognition.current.abort(); }
+    clearTimeout(stopTimer.current);
+    if (recorder.current) {
+      cancelled.current = true;
+      if (recorder.current.state === 'recording') recorder.current.stop();
+    }
   }, []);
 
   const setField = (field, value) => setForm(f => ({ ...f, [field]: value }));
@@ -82,40 +123,61 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
     }
   };
 
-  const startListening = () => {
-    if (!SpeechRec) return alert('Voice input needs Chrome or Edge.');
-    const rec = new SpeechRec();
-    rec.lang = lang;
-    rec.continuous = true;
-    rec.interimResults = false;
-    const base = form.description ? form.description.trim() + ' ' : '';
-    let spoken = '';
-    rec.onresult = (ev) => {
-      for (let i = ev.resultIndex; i < ev.results.length; i++) {
-        if (ev.results[i].isFinal) spoken += ev.results[i][0].transcript + ' ';
-      }
-      setField('description', (base + spoken).slice(0, MAX_DESCRIPTION));
-    };
-    rec.onerror = () => setListening(false);
-    rec.onend = () => {
-      setListening(false);
-      recognition.current = null;
-      if (spoken.trim()) runTriage((base + spoken).slice(0, MAX_DESCRIPTION));
-    };
-    recognition.current = rec;
-    rec.start();
-    setListening(true);
+    const transcribe = async (blob) => {
+    setTranscribing(true);
+    try {
+      const audio = await blobToWavBase64(blob);
+      const res = await axios.post(`${API}/incidents/transcribe`, { audio, mimeType: 'audio/wav' });
+      const spoken = String(res.data.text || '').trim();
+      if (!spoken) return alert('No speech was heard. Please try again.');
+      const base = descRef.current ? descRef.current.trim() + ' ' : '';
+      const full = (base + spoken).slice(0, MAX_DESCRIPTION);
+      setField('description', full);
+      await runTriage(full);
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || ('Recording error: ' + (err.name || '') + ' ' + (err.message || '')));
+    } finally {
+      setTranscribing(false);
+    }
+  };
+
+  const startListening = async () => {
+    if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
+      return alert('This browser cannot record audio.');
+    }
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      chunks.current = [];
+      const rec = new MediaRecorder(stream);
+      rec.ondataavailable = (ev) => { if (ev.data.size > 0) chunks.current.push(ev.data); };
+      rec.onstop = async () => {
+        clearTimeout(stopTimer.current);
+        stream.getTracks().forEach(t => t.stop());
+        setListening(false);
+        recorder.current = null;
+        if (cancelled.current) { cancelled.current = false; return; }
+        const blob = new Blob(chunks.current, { type: rec.mimeType });
+        if (blob.size < 1000) return alert('Nothing was recorded. Check your microphone.');
+        await transcribe(blob);
+      };
+      recorder.current = rec;
+      rec.start();
+      setListening(true);
+      stopTimer.current = setTimeout(() => { if (rec.state === 'recording') rec.stop(); }, 60000); // 1 minute max
+    } catch (e) {
+      alert('Microphone error: ' + e.name + '. Allow the microphone for this site and try again.');
+    }
   };
 
   const stopListening = () => {
-    if (recognition.current) recognition.current.stop();
+    if (recorder.current && recorder.current.state === 'recording') recorder.current.stop();
   };
 
   const cancelListening = () => {
-    if (recognition.current) {
-      recognition.current.onend = null;
-      recognition.current.abort();
-      recognition.current = null;
+    if (recorder.current) {
+      cancelled.current = true;
+      if (recorder.current.state === 'recording') recorder.current.stop();
     }
     setListening(false);
   };
@@ -260,18 +322,10 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
           <button type="button" className="btn btn-secondary" onClick={() => runTriage()} disabled={analyzing || submitting}>
             {analyzing ? 'Analysing…' : 'Suggest category and priority with AI'}
           </button>
-          {SpeechRec && (
-            <>
-              <select className="input-field ai-lang" value={lang} onChange={e => setLang(e.target.value)} disabled={listening} aria-label="Speech language">
-                <option value="en-IN">English</option>
-                <option value="hi-IN">हिन्दी</option>
-                <option value="te-IN">తెలుగు</option>
-              </select>
-              <button type="button" className={`btn ${listening ? 'btn-danger' : 'btn-secondary'}`} onClick={listening ? stopListening : startListening} disabled={submitting}>
-                {listening ? 'Stop recording' : 'Speak the problem'}
-              </button>
-            </>
-          )}
+          <button type="button" className={`btn ${listening ? 'btn-danger' : 'btn-secondary'}`}
+            onClick={listening ? stopListening : startListening} disabled={submitting || transcribing || analyzing}>
+            {transcribing ? 'Transcribing…' : listening ? 'Stop recording' : 'Speak the problem'}
+          </button>
         </div>
         {triage && (
           <div className="ai-panel">

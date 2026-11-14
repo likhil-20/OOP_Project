@@ -4,6 +4,7 @@ import com.itsm.dto.IncidentRequest;
 import com.itsm.dto.LoginRequest;
 import com.itsm.dto.RegisterRequest;
 import com.itsm.dto.TriageRequest;
+import com.itsm.dto.TranscribeRequest;
 import com.itsm.dto.CreateUserRequest;
 import com.itsm.exception.BadRequestException;
 import com.itsm.exception.ConflictException;
@@ -233,6 +234,11 @@ private String cleanSkills(String raw) {
     @PostMapping("/incidents/triage")
     public ResponseEntity<?> triage(@Valid @RequestBody TriageRequest req) {
         return ResponseEntity.ok(triageService.triage(req.description()));
+    }
+
+    @PostMapping("/incidents/transcribe")
+    public ResponseEntity<?> transcribe(@Valid @RequestBody TranscribeRequest req) {
+        return ResponseEntity.ok(Map.of("text", triageService.transcribe(req.audio(), req.mimeType())));
     }
 
     @GetMapping("/incidents/suggested-resolution")

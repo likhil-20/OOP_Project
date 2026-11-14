@@ -69,7 +69,7 @@ GEMINI_API_KEY=<key from https://aistudio.google.com/apikey>
 ALERT_WEBHOOK_URL=<Slack or Discord incoming-webhook URL>
 ```
 Without a key, the form still works: a keyword-based fallback suggests the category.
-Voice input needs Chrome or Edge (works on localhost).
+Voice input records audio in the browser and Gemini turns it into text, so it needs the Gemini key and a microphone (works in Chrome, Edge and Brave on localhost).
 
 ## Day-to-day commands
 
