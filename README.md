@@ -61,6 +61,16 @@ docker compose up -d --build backend frontend
 ```
 Then open http://localhost:3000
 
+## Optional: AI triage and P1 alerts
+
+Add these lines to your `.env.local` (or `.env`). Never commit this file.
+```bash
+GEMINI_API_KEY=<key from https://aistudio.google.com/apikey>
+ALERT_WEBHOOK_URL=<Slack or Discord incoming-webhook URL>
+```
+Without a key, the form still works: a keyword-based fallback suggests the category.
+Voice input needs Chrome or Edge (works on localhost).
+
 ## Day-to-day commands
 
 For the local database, add `--env-file .env.local --profile local` to each command.

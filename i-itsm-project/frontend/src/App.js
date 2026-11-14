@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import IncidentForm from './IncidentForm';
 import Mailbox from './Mailbox';
@@ -9,6 +9,10 @@ const API = 'http://localhost:8080/api';
 function App() {
   const [user, setUser] = useState(null);
   const [emailInput, setEmailInput] = useState('');
+  const [authMode, setAuthMode] = useState('login');
+  const [reg, setReg] = useState({ name: '', email: '', password: '' });
+  const [newService, setNewService] = useState({ serviceName: '', businessCriticality: 'MEDIUM', description: '' });
+  const [slaEdits, setSlaEdits] = useState({});
   const [passwordInput, setPasswordInput] = useState('');
 
   const [incidents, setIncidents] = useState([]);
@@ -20,8 +24,7 @@ function App() {
   const [analytics, setAnalytics] = useState(null);
   const [slaViolations, setSlaViolations] = useState([]);
   const [slaRisks, setSlaRisks] = useState([]);
-    const [slaHistory, setSlaHistory] = useState([]);
-  const [suggestedResolutions, setSuggestedResolutions] = useState([]);
+  const [slaHistory, setSlaHistory] = useState([]);
 
   // Audit Trail State
   const [auditModalOpen, setAuditModalOpen] = useState(false);
@@ -35,16 +38,6 @@ function App() {
   const [configList, setConfigList] = useState([]);
   const [newCategoryName, setNewCategoryName] = useState('');
   const [newUser, setNewUser] = useState({ name: '', email: '', password: '', role: 'TECHNICIAN', skills: '' });
-
-  // New Incident Form State
-  const [category, setCategory] = useState('');
-  const [serviceId, setServiceId] = useState('');
-  const [impact, setImpact] = useState('HIGH');
-  const [urgency, setUrgency] = useState('HIGH');
-  const [affectedUsers, setAffectedUsers] = useState(1);
-  const [description, setDescription] = useState('');
-  const submittingIncident = useRef(false);
-  const [submitting, setSubmitting] = useState(false);
 
   // Advanced Search & Filter state
   const [searchQuery, setSearchQuery] = useState('');

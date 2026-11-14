@@ -3,6 +3,7 @@ package com.itsm.controller;
 import com.itsm.dto.IncidentRequest;
 import com.itsm.dto.LoginRequest;
 import com.itsm.dto.RegisterRequest;
+import com.itsm.dto.TriageRequest;
 import com.itsm.dto.CreateUserRequest;
 import com.itsm.exception.BadRequestException;
 import com.itsm.exception.ConflictException;
@@ -43,6 +44,7 @@ public class ITSMController {
     @Autowired private IncidentCategoryRepository categoryRepository;
     @Autowired private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     @Autowired private com.itsm.service.EmailService emailService;
+    @Autowired private TriageService triageService;
     // The logged-in user, put there by AuthInterceptor after checking the token
     private User currentUser(HttpServletRequest request) {
         return (User) request.getAttribute("authUser");
@@ -226,6 +228,11 @@ private String cleanSkills(String raw) {
                                                   @RequestBody Map<String, Object> payload,
                                                   HttpServletRequest request) {
         return ResponseEntity.ok(incidentService.updateStatus(id, payload, currentUser(request)));
+    }
+
+    @PostMapping("/incidents/triage")
+    public ResponseEntity<?> triage(@Valid @RequestBody TriageRequest req) {
+        return ResponseEntity.ok(triageService.triage(req.description()));
     }
 
     @GetMapping("/incidents/suggested-resolution")

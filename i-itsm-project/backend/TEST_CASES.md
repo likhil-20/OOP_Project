@@ -31,3 +31,12 @@ Run all tests: `cd i-itsm-project/backend` then `mvn test`
 | TC-25 | IncidentServiceTest | Resolve with details | Status RESOLVED, technician load minus 1 |
 | TC-26 | AuthServiceTest | Account locked for one IP, login from a different IP | Other IP can still log in |
 | TC-27 | DtoValidationTest | Affected users 10001 vs 10000 | 10001 rejected, 10000 accepted |
+| TC-28 | SlaMonitorServiceTest | Unacknowledged incident past response deadline, monitor runs twice | One violation saved |
+| TC-29 | SlaMonitorServiceTest | Incident at 80% of response window | Warning sent, no violation |
+| TC-30 | TriageTest | Wi-Fi outage text, keyword classifier | Network, HIGH impact |
+| TC-31 | TriageTest | Meaningless text, keyword classifier | Others, low confidence |
+| TC-32 | TriageTest | Gemini throws an error | Keyword fallback used |
+| TC-33 | TriageTest | Same text analysed twice | Gemini called once (cache) |
+| TC-34 | AuthInterceptorTest | Request without token | 401 |
+| TC-35 | AuthInterceptorTest | Employee calls /api/admin/users | 403 |
+| TC-36 | AuthInterceptorTest | Administrator calls /api/admin/users | Allowed |

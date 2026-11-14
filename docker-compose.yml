@@ -30,6 +30,9 @@ services:
       SPRING_DATASOURCE_USERNAME: ${DB_USER}
       SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD}
       TZ: Asia/Kolkata
+      GEMINI_API_KEY: ${GEMINI_API_KEY:-}
+      GEMINI_MODEL: ${GEMINI_MODEL:-gemini-2.5-flash}
+      ALERT_WEBHOOK_URL: ${ALERT_WEBHOOK_URL:-}
     mem_limit: 640m
 
   frontend:
