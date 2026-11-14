@@ -37,11 +37,12 @@ public class ITSMController {
     @Autowired private AnalyticsService analyticsService;
     @Autowired private NotificationService notificationService;
     @Autowired private UserRepository userRepository;
-@Autowired private IncidentRepository incidentRepository;
-@Autowired private com.itsm.repository.SlaViolationRepository slaViolationRepository;
-@Autowired private IncidentCategoryRepository categoryRepository;
-@Autowired private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
-   @Autowired private com.itsm.service.EmailService emailService;
+    @Autowired private IncidentRepository incidentRepository;
+    @Autowired private com.itsm.repository.SlaViolationRepository slaViolationRepository;
+    @Autowired private com.itsm.repository.AuditLogRepository auditLogRepository;
+    @Autowired private IncidentCategoryRepository categoryRepository;
+    @Autowired private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    @Autowired private com.itsm.service.EmailService emailService;
     // The logged-in user, put there by AuthInterceptor after checking the token
     private User currentUser(HttpServletRequest request) {
         return (User) request.getAttribute("authUser");
@@ -268,6 +269,11 @@ private String cleanSkills(String raw) {
     @GetMapping("/admin/sla-violation-history")
     public List<SlaViolation> getSlaViolationHistory() {
         return slaViolationRepository.findAllByOrderByDetectedAtDesc();
+    }
+
+    @GetMapping("/admin/activity")
+    public List<com.itsm.model.AuditLog> getRecentActivity() {
+        return auditLogRepository.findTop15ByOrderByTimestampDesc();
     }
 
     // ---------- Notifications & audit ----------

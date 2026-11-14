@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import IncidentForm from './IncidentForm';
 import Mailbox from './Mailbox';
+import MissionControl from './MissionControl';
 
 const API = 'http://localhost:8080/api';
 
@@ -607,6 +608,7 @@ const handleChangeRole = async (u, role) => {
                 <div className="dashboard-card" style={{ padding: '0', overflow: 'hidden' }}>
                   <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
                     <button onClick={() => setAdminTab('reports')} className={`nav-tab ${adminTab === 'reports' ? 'active' : ''}`}>Reports & Dashboards</button>
+                    <button onClick={() => setAdminTab('mission')} className={`nav-tab ${adminTab === 'mission' ? 'active' : ''}`}>Mission Control</button>
                     <button onClick={() => setAdminTab('tickets')} className={`nav-tab ${adminTab === 'tickets' ? 'active' : ''}`}>Ticket Governance</button>
                     <button onClick={() => setAdminTab('users')} className={`nav-tab ${adminTab === 'users' ? 'active' : ''}`}>Users</button>
                     <button onClick={() => setAdminTab('categories')} className={`nav-tab ${adminTab === 'categories' ? 'active' : ''}`}>Categories</button>
@@ -617,7 +619,7 @@ const handleChangeRole = async (u, role) => {
                   </div>
 
                   <div style={{ padding: '24px' }}>
-                    
+                    {adminTab === 'mission' && <MissionControl />}
                     {adminTab === 'reports' && analytics && (
                       <div>
                          <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '24px', color: '#0f172a' }}>Global System Analytics</h3>
