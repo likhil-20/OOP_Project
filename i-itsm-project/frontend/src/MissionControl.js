@@ -88,10 +88,10 @@ function eventColor(action) {
 }
 
 const CSS = `
-.mc-root{background:radial-gradient(1200px 600px at 15% -10%,#1e1b4b 0%,#0b1020 55%,#070a14 100%);color:#e2e8f0;border-radius:16px;padding:22px 24px;margin:-8px;min-height:640px;font-family:inherit}
+.mc-root{background:#0f172a;color:#e2e8f0;border-radius:16px;padding:22px 24px;margin:-8px;min-height:640px;font-family:inherit}
 .mc-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;gap:12px;flex-wrap:wrap}
 .mc-brand{display:flex;align-items:center;gap:12px}
-.mc-logo{background:#4f46e5;border-radius:10px;padding:7px 11px;font-weight:800;letter-spacing:.5px;color:#fff}
+.mc-logo{background:#1d4ed8;border-radius:10px;padding:7px 11px;font-weight:800;letter-spacing:.5px;color:#fff}
 .mc-title{font-size:20px;font-weight:700;color:#f8fafc}
 .mc-sub{font-size:12px;color:#94a3b8;margin-top:2px}
 .mc-live{display:flex;align-items:center;gap:8px;font-size:13px;color:#94a3b8}
@@ -101,7 +101,7 @@ const CSS = `
 @keyframes mcSlide{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:none}}
 .mc-cards{display:grid;grid-template-columns:repeat(5,1fr);gap:14px;margin-bottom:14px}
 .mc-card{background:rgba(255,255,255,.045);border:1px solid rgba(255,255,255,.08);border-radius:16px;padding:16px 18px;min-width:0}
-.mc-crit{border-color:rgba(239,68,68,.6);animation:mcGlow 2.2s infinite}
+.mc-crit{border-color:rgba(239,68,68,.6)}
 .mc-crit .mc-num{color:#fca5a5}
 .mc-lbl{font-size:11px;text-transform:uppercase;letter-spacing:1.2px;color:#94a3b8}
 .mc-num{font-size:40px;font-weight:800;margin:4px 0 2px;color:#f8fafc;line-height:1.15}

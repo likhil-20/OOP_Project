@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import axios from 'axios';
 
 const API = 'http://localhost:8080/api';
@@ -29,10 +29,24 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
   const lock = useRef(false);
   const debounce = useRef(null);
 
+  // AI triage + voice
+  const [triage, setTriage] = useState(null);
+  const [analyzing, setAnalyzing] = useState(false);
+  const [listening, setListening] = useState(false);
+  const [lang, setLang] = useState('en-IN');
+  const recognition = useRef(null);
+  const SpeechRec = typeof window !== 'undefined' ? (window.SpeechRecognition || window.webkitSpeechRecognition) : null;
+
+  useEffect(() => () => {
+    if (recognition.current) { recognition.current.onend = null; recognition.current.abort(); }
+  }, []);
+
   const setField = (field, value) => setForm(f => ({ ...f, [field]: value }));
   const isDirty = JSON.stringify(form) !== JSON.stringify(EMPTY);
 
   const resetForm = () => {
+    cancelListening();
+    setTriage(null);
     setForm(EMPTY);
     setSuggested([]);
   };
@@ -42,6 +56,68 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
   const handleDiscard = () => {
     if (isDirty && !window.confirm('Discard this ticket? Everything you typed will be lost.')) return;
     resetForm();
+  };
+
+  const runTriage = async (text) => {
+    const desc = (text ?? form.description).trim();
+    if (desc.length < 5) return alert('Describe the problem in a few words first.');
+    setAnalyzing(true);
+    try {
+      const res = await axios.post(`${API}/incidents/triage`, { description: desc });
+      const t = res.data;
+      const match = categories.find(c => c.name.toLowerCase() === String(t.category).toLowerCase());
+      const svc = services.find(s => s.id === t.serviceId);
+      setForm(f => ({
+        ...f,
+        category: match ? match.name : OTHER,
+        serviceId: svc ? String(svc.id) : f.serviceId,
+        impact: t.impact || f.impact,
+        urgency: t.urgency || f.urgency
+      }));
+      setTriage(t);
+    } catch (err) {
+      alert(err.response?.data?.error || 'AI triage is unavailable right now. Please fill the form manually.');
+    } finally {
+      setAnalyzing(false);
+    }
+  };
+
+  const startListening = () => {
+    if (!SpeechRec) return alert('Voice input needs Chrome or Edge.');
+    const rec = new SpeechRec();
+    rec.lang = lang;
+    rec.continuous = true;
+    rec.interimResults = false;
+    const base = form.description ? form.description.trim() + ' ' : '';
+    let spoken = '';
+    rec.onresult = (ev) => {
+      for (let i = ev.resultIndex; i < ev.results.length; i++) {
+        if (ev.results[i].isFinal) spoken += ev.results[i][0].transcript + ' ';
+      }
+      setField('description', (base + spoken).slice(0, MAX_DESCRIPTION));
+    };
+    rec.onerror = () => setListening(false);
+    rec.onend = () => {
+      setListening(false);
+      recognition.current = null;
+      if (spoken.trim()) runTriage((base + spoken).slice(0, MAX_DESCRIPTION));
+    };
+    recognition.current = rec;
+    rec.start();
+    setListening(true);
+  };
+
+  const stopListening = () => {
+    if (recognition.current) recognition.current.stop();
+  };
+
+  const cancelListening = () => {
+    if (recognition.current) {
+      recognition.current.onend = null;
+      recognition.current.abort();
+      recognition.current = null;
+    }
+    setListening(false);
   };
 
   const fetchSuggestions = async (cat, desc) => {
@@ -179,9 +255,37 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
             debounce.current = setTimeout(() => fetchSuggestions(form.category, v), 600);
           }}></textarea>
         <div style={counterStyle}>{form.description.length}/{MAX_DESCRIPTION}</div>
+
+        <div className="ai-bar">
+          <button type="button" className="btn btn-secondary" onClick={() => runTriage()} disabled={analyzing || submitting}>
+            {analyzing ? 'Analysing…' : 'Suggest category and priority with AI'}
+          </button>
+          {SpeechRec && (
+            <>
+              <select className="input-field ai-lang" value={lang} onChange={e => setLang(e.target.value)} disabled={listening} aria-label="Speech language">
+                <option value="en-IN">English</option>
+                <option value="hi-IN">हिन्दी</option>
+                <option value="te-IN">తెలుగు</option>
+              </select>
+              <button type="button" className={`btn ${listening ? 'btn-danger' : 'btn-secondary'}`} onClick={listening ? stopListening : startListening} disabled={submitting}>
+                {listening ? 'Stop recording' : 'Speak the problem'}
+              </button>
+            </>
+          )}
+        </div>
+        {triage && (
+          <div className="ai-panel">
+            <div className="ai-head">
+              <strong>Suggested: {triage.category} · impact {String(triage.impact).toLowerCase()} · urgency {String(triage.urgency).toLowerCase()}</strong>
+              <span className="ai-source">{triage.source === 'GEMINI' ? 'Gemini' : 'Rule-based fallback'}</span>
+            </div>
+            <div className="conf"><i style={{ width: `${triage.confidence}%` }} /></div>
+            <div className="ai-note">{triage.confidence}% confidence. {triage.reason} The fields above were filled in for you; please review them before submitting.</div>
+          </div>
+        )}
         {suggested.length > 0 && (
           <div style={{ marginTop: '12px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px' }}>
-            <div style={{ fontSize: '13px', fontWeight: '700', color: '#4f46e5', marginBottom: '8px' }}>💡 Suggested Resolutions from Similar Past Incidents:</div>
+            <div style={{ fontSize: '13px', fontWeight: '700', color: '#4f46e5', marginBottom: '8px' }}>Suggested resolutions from similar past incidents.</div>
             {suggested.map((s, idx) => (
               <div key={idx} style={{ fontSize: '13px', padding: '6px 0', borderBottom: idx < suggested.length - 1 ? '1px dashed #e2e8f0' : 'none' }}>
                 <div><strong>Past Issue #{s.matchedIncidentId}:</strong> {s.pastDescription}</div>

@@ -30,6 +30,12 @@ Intelligent IT Service Management system: employees report IT incidents, the sys
 | FR16 | Administrators manage users (approve, delete), categories, IT services, SLA policies and assignment strategy. |
 | FR17 | The system suggests resolutions from similar past incidents while an incident is being typed. |
 | FR18 | Search and filter incidents by keyword, priority, status, category, technician, service, date and SLA state. |
+| FR19 | AI triage: from the typed description the system suggests category, impact, urgency and service with a confidence score; the user can edit every field. A keyword classifier is the fallback when the AI service is unavailable. |
+| FR20 | Voice reporting: the employee can speak the problem (English, Hindi or Telugu) and the AI triage fills the form. |
+| FR21 | Credentials and incident events are sent to users by simulated email (in-app mailbox). |
+| FR22 | The system tracks response and resolution SLAs in the background, warns at 80% of the window and saves every violation. |
+| FR23 | New P1 incidents are posted to a Slack/Discord webhook (optional). |
+| FR24 | Login is locked for 15 minutes after 5 failed attempts per email and IP address. |
 
 ## 4. Non-Functional Requirements
 | ID | Requirement |
@@ -40,10 +46,10 @@ Intelligent IT Service Management system: employees report IT incidents, the sys
 | NFR4 | Input validation on all requests (Bean Validation). |
 | NFR5 | Maintainability: Strategy, Observer and Factory design patterns; layered structure. |
 | NFR6 | Portability: runs with Docker Compose (backend, frontend, PostgreSQL). |
-| NFR7 | Dashboard data refreshes automatically every 10 seconds. |
+| NFR7 | Dashboard data refreshes automatically (every 15 s; Mission Control every 5 s). |
 | NFR8 | Strategy can be changed at runtime without downtime. |
 
 ## 5. Constraints and Assumptions
 - Java 17, Spring Boot 3.2.5, PostgreSQL 16, React 18.
-- Notifications are in-app only (no email or SMS).
+- Notifications: in-app, simulated email (saved to an in-app mailbox) and an optional Slack/Discord webhook for P1 incidents.
 - New self-registered users get the EMPLOYEE role.

@@ -46,7 +46,7 @@ export default function Mailbox({ user, onClose, onChanged }) {
       <div className="dashboard-card" style={{ width: '960px', maxWidth: '95vw', height: '80vh', margin: 0, padding: 0, display: 'flex', flexDirection: 'column', overflow: 'hidden' }}>
 
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid #e2e8f0' }}>
-          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>✉ Mailbox</h2>
+          <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>Mailbox</h2>
           <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
             {isAdmin && (
               <>

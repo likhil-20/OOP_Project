@@ -110,6 +110,56 @@ function App() {
     }
   };
 
+  const handleRegister = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await axios.post(`${API}/auth/register`, reg);
+      alert(res.data.message || 'Registration successful. Wait for administrator approval.');
+      setReg({ name: '', email: '', password: '' });
+      setAuthMode('login');
+    } catch (err) {
+      alert(err.response?.data?.error || 'Registration failed.');
+    }
+  };
+
+  const handleAddService = async (e) => {
+    e.preventDefault();
+    try {
+      await axios.post(`${API}/admin/services`, newService);
+      setNewService({ serviceName: '', businessCriticality: 'MEDIUM', description: '' });
+      loadDashboardData(user);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to add service (the name may already exist).');
+    }
+  };
+
+  const handleDeleteService = async (id) => {
+    if (!window.confirm('Remove this service?')) return;
+    try {
+      await axios.delete(`${API}/admin/services/${id}`);
+      loadDashboardData(user);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to remove service.');
+    }
+  };
+
+  const handleSaveSla = async (p) => {
+    const edit = slaEdits[p.id] || {};
+    const body = {
+      ...p,
+      responseMinutes: Number(edit.responseMinutes ?? p.responseMinutes),
+      resolutionMinutes: Number(edit.resolutionMinutes ?? p.resolutionMinutes)
+    };
+    try {
+      await axios.post(`${API}/admin/sla`, body);
+      setSlaEdits(prev => { const n = { ...prev }; delete n[p.id]; return n; });
+      loadDashboardData(user);
+      alert('SLA policy saved. It applies to new incidents.');
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to save SLA policy.');
+    }
+  };
+
   const loadDashboardData = async (u, light = false) => {
     const isAdmin = u.role === 'ADMINISTRATOR';
     const calls = [
@@ -139,8 +189,8 @@ function App() {
     if (data(2)) setMailUnread(data(2).filter(m => !m.opened).length);
     if (light) return;
 
-    if (data(3)) { setServices(data(3)); if (data(3).length > 0 && !serviceId) setServiceId(data(3)[0].id); }
-    if (data(4)) { setCategories(data(4)); if (data(4).length > 0 && !category) setCategory(data(4)[0].name); }
+    if (data(3)) setServices(data(3));
+    if (data(4)) setCategories(data(4));
     if (isAdmin) {
       if (data(5)) setAnalytics(data(5));
       if (data(6)) setSlaViolations(data(6));
@@ -162,39 +212,6 @@ function App() {
     }, 15000);
     return () => clearInterval(interval);
   }, [user]);
-
-  const fetchSuggestedResolutions = async (cat, desc) => {
-    try {
-      if (!desc || desc.length < 3) {
-        setSuggestedResolutions([]);
-        return;
-      }
-      const res = await axios.get(`${API}/incidents/suggested-resolution?category=${cat || ''}&description=${encodeURIComponent(desc)}`);
-      setSuggestedResolutions(res.data);
-    } catch (e) {
-      console.error(e);
-    }
-  };
-
-  const handleCreateIncident = async (e) => {
-  e.preventDefault();
-  if (submittingIncident.current) return;
-  if (!serviceId) return alert("Please select an affected IT service.");
-  submittingIncident.current = true;
-  setSubmitting(true);
-  try {
-    await axios.post(`${API}/incidents`, { email: user.email, category, serviceId, impact, urgency, description, affectedUsers: Number(affectedUsers) });
-    setDescription('');
-    setAffectedUsers(1);
-    loadDashboardData(user);
-    alert("Incident submitted successfully!");
-  } catch (err) {
-    alert(err.response?.data?.error || "Failed to create incident.");
-  } finally {
-    submittingIncident.current = false;
-    setSubmitting(false);
-  }
-};
 
   const handleStatusUpdate = async (id, newStatus, extra = {}) => {
     try {
@@ -290,6 +307,16 @@ const handleChangeRole = async (u, role) => {
     loadDashboardData(user);
   };
 
+  // Technician workload (the incident list is already limited to this technician)
+  const FINISHED_STATES = ['RESOLVED', 'VERIFIED', 'CLOSED'];
+  const openMine = incidents.filter(i => !FINISHED_STATES.includes(i.status));
+  const nowMs = Date.now();
+  const deadlineMs = (i) => (i.slaResolutionDeadline ? new Date(i.slaResolutionDeadline).getTime() : null);
+  const myActive = openMine.length;
+  const myOverdue = openMine.filter(i => deadlineMs(i) !== null && deadlineMs(i) < nowMs).length;
+  const myAtRisk = openMine.filter(i => deadlineMs(i) !== null && deadlineMs(i) >= nowMs && deadlineMs(i) - nowMs < 2 * 60 * 60 * 1000).length;
+  const myDone = incidents.length - openMine.length;
+
   const filteredIncidents = incidents.filter(inc => {
     const matchesSearch = inc.description.toLowerCase().includes(searchQuery.toLowerCase()) || inc.id.toString().includes(searchQuery);
     const matchesPriority = filterPriority === 'ALL' || inc.priority === filterPriority;
@@ -312,80 +339,72 @@ const handleChangeRole = async (u, role) => {
   });
 
   return (
-    <div style={{ fontFamily: '"Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif', background: '#f4f7f9', minHeight: '100vh', color: '#1e293b' }}>
-      <style>{`
-        .dashboard-card { background: #fff; border-radius: 12px; padding: 24px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); margin-bottom: 24px; }
-        .btn { padding: 8px 16px; border-radius: 8px; border: none; font-weight: 600; cursor: pointer; transition: all 0.2s; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; }
-        .btn-primary { background: #4f46e5; color: white; }
-        .btn-primary:hover { background: #4338ca; box-shadow: 0 4px 12px rgba(79, 70, 229, 0.2); }
-        .btn-success { background: #10b981; color: white; }
-        .btn-success:hover { background: #059669; }
-        .btn-danger { background: #ef4444; color: white; }
-        .btn-danger:hover { background: #dc2626; }
-        .btn-warning { background: #f59e0b; color: white; }
-        .btn-warning:hover { background: #d97706; }
-        .btn-secondary { background: #f1f5f9; color: #475569; }
-        .btn-secondary:hover { background: #e2e8f0; color: #1e293b; }
-        .input-field { width: 100%; padding: 10px 14px; border-radius: 8px; border: 1px solid #cbd5e1; font-size: 14px; transition: all 0.2s; box-sizing: border-box; background: #f8fafc; }
-        .input-field:focus { outline: none; border-color: #4f46e5; background: #fff; box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.1); }
-        .table-custom { width: 100%; border-collapse: separate; border-spacing: 0; font-size: 14px; }
-        .table-custom th { background: #f8fafc; color: #64748b; padding: 14px; font-weight: 600; text-transform: uppercase; font-size: 12px; letter-spacing: 0.5px; border-bottom: 2px solid #e2e8f0; text-align: left; }
-        .table-custom td { padding: 14px; border-bottom: 1px solid #f1f5f9; color: #334155; vertical-align: top; }
-        .table-custom tr:hover td { background: #f8fafc; }
-        .pill { padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 700; display: inline-block; white-space: nowrap; }
-        .pill-P1 { background: #fee2e2; color: #dc2626; }
-        .pill-P2 { background: #fef3c7; color: #d97706; }
-        .pill-P3 { background: #e0e7ff; color: #4338ca; }
-        .pill-P4 { background: #f1f5f9; color: #475569; }
-        .pill-status { background: #f3f4f6; color: #475569; border: 1px solid #e2e8f0; font-weight: 600; }
-        .nav-tab { background: transparent; color: #64748b; border: none; padding: 12px 20px; font-weight: 600; cursor: pointer; border-bottom: 2px solid transparent; transition: all 0.2s; font-size: 14px; }
-        .nav-tab.active { color: #4f46e5; border-bottom: 2px solid #4f46e5; }
-        .nav-tab:hover:not(.active) { color: #1e293b; background: #f8fafc; border-radius: 8px 8px 0 0; }
-        .stat-card { background: white; padding: 20px; border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.05), 0 2px 4px -1px rgba(0,0,0,0.03); text-align: center; border-bottom: 4px solid transparent; }
-        .report-section { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; margin-bottom: 16px; }
-        .report-header { font-size: 14px; font-weight: 700; color: #334155; margin-bottom: 12px; text-transform: uppercase; letter-spacing: 0.5px; border-bottom: 2px solid #cbd5e1; padding-bottom: 8px; }
-        .report-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px dashed #cbd5e1; font-size: 14px; }
-        .report-row:last-child { border-bottom: none; }
-        .report-val { font-weight: 600; color: #0f172a; }
-      `}</style>
-
+    <div className="app-shell">
       {/* Top Header */}
-      <header style={{ background: 'linear-gradient(135deg, #1e1b4b 0%, #4338ca 100%)', color: 'white', padding: '16px 32px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', boxShadow: '0 4px 12px rgba(0,0,0,0.1)' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-          <div style={{ background: 'rgba(255,255,255,0.2)', padding: '6px 12px', borderRadius: '8px', fontWeight: 'bold', fontSize: '15px', backdropFilter: 'blur(4px)' }}>I-ITSM</div>
-          <h1 style={{ fontSize: '20px', fontWeight: '600', margin: 0, letterSpacing: '-0.01em' }}>Intelligent Service Desk</h1>
+      <header className="topbar">
+        <div className="brand">
+          <span className="brand-mark">I-ITSM</span>
+          <span className="brand-name">IT Service Desk</span>
         </div>
         {user && (
-          <div style={{ display: 'flex', alignItems: 'center', gap: '16px', fontSize: '14px' }}>
-            <div style={{ background: 'rgba(255,255,255,0.1)', padding: '6px 16px', borderRadius: '999px' }}>
-              Signed in as <strong>{user.name}</strong> <span style={{ opacity: 0.8, fontSize: '12px', marginLeft: '6px' }}>({user.role})</span>
+          <div className="topbar-right">
+            <div className="user-chip">
+              <strong>{user.name}</strong>
+              <span className="user-role">{user.role.toLowerCase()}</span>
             </div>
-            <button onClick={handleLogout} className="btn" style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}>Sign Out</button>
-            <button onClick={() => setShowMail(true)} className="btn" style={{ background: 'rgba(255,255,255,0.15)', color: 'white' }}>✉ Mail{mailUnread > 0 ? ` (${mailUnread})` : ''}</button>
+            <button onClick={() => setShowMail(true)} className="btn btn-ghost">Mail{mailUnread > 0 ? ` (${mailUnread})` : ''}</button>
+            <button onClick={handleLogout} className="btn btn-ghost">Sign out</button>
           </div>
         )}
       </header>
 
       {!user ? (
-        <div className="dashboard-card" style={{ maxWidth: '420px', margin: '80px auto', padding: '40px' }}>
-          <h2 style={{ fontSize: '24px', fontWeight: '700', marginBottom: '8px', textAlign: 'center', color: '#0f172a' }}>
-            Welcome Back
-          </h2>
-          <p style={{ fontSize: '14px', color: '#64748b', textAlign: 'center', marginBottom: '32px' }}>
-            Sign in to access your enterprise portal
-          </p>
+        <div className="auth-wrap">
+          <div className="auth-card">
+            <h2>{authMode === 'login' ? 'Sign in' : 'Create an account'}</h2>
+            <p className="auth-sub">
+              {authMode === 'login'
+                ? 'Use your organisation email to reach the service desk.'
+                : 'New accounts must be approved by an administrator before the first sign-in.'}
+            </p>
 
-          <form onSubmit={handleLogin} autoComplete="off" style={{ display: 'flex', flexDirection: 'column', gap: '20px' }}>
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#334155' }}>Email Address</label>
-              <input type="email" required className="input-field" value={emailInput} onChange={e => setEmailInput(e.target.value)} placeholder="Enter your email" maxLength={150} autoComplete="off" name="itsm-login-email" />
+            {authMode === 'login' ? (
+              <form onSubmit={handleLogin} autoComplete="off" className="stack">
+                <div>
+                  <label className="field-label">Email</label>
+                  <input type="email" required className="input-field" value={emailInput} onChange={e => setEmailInput(e.target.value)} maxLength={150} autoComplete="off" name="itsm-login-email" />
+                </div>
+                <div>
+                  <label className="field-label">Password</label>
+                  <input type="password" required className="input-field" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} maxLength={100} autoComplete="new-password" name="itsm-login-password" />
+                </div>
+                <button type="submit" className="btn btn-primary" style={{ padding: '10px' }}>Sign in</button>
+              </form>
+            ) : (
+              <form onSubmit={handleRegister} autoComplete="off" className="stack">
+                <div>
+                  <label className="field-label">Full name</label>
+                  <input type="text" required minLength={2} maxLength={100} className="input-field" value={reg.name} onChange={e => setReg({ ...reg, name: e.target.value })} />
+                </div>
+                <div>
+                  <label className="field-label">Email</label>
+                  <input type="email" required maxLength={150} className="input-field" value={reg.email} onChange={e => setReg({ ...reg, email: e.target.value })} />
+                </div>
+                <div>
+                  <label className="field-label">Password (6 to 100 characters)</label>
+                  <input type="password" required minLength={6} maxLength={100} className="input-field" autoComplete="new-password" value={reg.password} onChange={e => setReg({ ...reg, password: e.target.value })} />
+                </div>
+                <button type="submit" className="btn btn-primary" style={{ padding: '10px' }}>Request account</button>
+              </form>
+            )}
+
+            <div className="auth-switch">
+              {authMode === 'login' ? 'No account yet? ' : 'Already registered? '}
+              <button type="button" className="link-btn" onClick={() => setAuthMode(authMode === 'login' ? 'register' : 'login')}>
+                {authMode === 'login' ? 'Create one' : 'Sign in'}
+              </button>
             </div>
-            <div>
-              <label style={{ display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '6px', color: '#334155' }}>Password</label>
-              <input type="password" required className="input-field" value={passwordInput} onChange={e => setPasswordInput(e.target.value)} placeholder="Enter your password" maxLength={100} autoComplete="new-password" name="itsm-login-password" />
-            </div>
-            <button type="submit" className="btn btn-primary" style={{ padding: '12px', fontSize: '15px', marginTop: '8px' }}>Sign In</button>
-          </form>
+          </div>
         </div>
       ) : (
         <div style={{ maxWidth: '1400px', margin: '32px auto', padding: '0 24px', display: 'grid', gridTemplateColumns: '1fr 340px', gap: '32px' }}>
@@ -497,7 +516,13 @@ const handleChangeRole = async (u, role) => {
             {/* TECHNICIAN PORTAL */}
             {user.role === 'TECHNICIAN' && (
               <div className="dashboard-card">
-                <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', color: '#0f172a' }}>Assigned Incidents & Investigation</h2>
+                <h2 className="card-title">Assigned incidents</h2>
+                <div className="workload-strip">
+                  <div><span>{myActive}</span>Active</div>
+                  <div><span>{myAtRisk}</span>Due within 2 hours</div>
+                  <div><span>{myOverdue}</span>Overdue</div>
+                  <div><span>{myDone}</span>Resolved</div>
+                </div>
                 <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: '#fff', flexWrap: 'wrap', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '16px' }}>
                   <span style={{ fontWeight: '600', color: '#64748b', fontSize: '14px', width: '100%' }}>Filters & Search:</span>
                   <input type="text" className="input-field" placeholder="Search keywords, description, or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ flex: 1, minWidth: '200px' }} />
@@ -607,8 +632,9 @@ const handleChangeRole = async (u, role) => {
                     <button onClick={() => setAdminTab('categories')} className={`nav-tab ${adminTab === 'categories' ? 'active' : ''}`}>Categories</button>
                     <button onClick={() => setAdminTab('services')} className={`nav-tab ${adminTab === 'services' ? 'active' : ''}`}>IT Services</button>
                     <button onClick={() => setAdminTab('settings')} className={`nav-tab ${adminTab === 'settings' ? 'active' : ''}`}>Settings</button>
-                    <button onClick={() => setAdminTab('violations')} className={`nav-tab ${adminTab === 'violations' ? 'active' : ''}`}>SLA</button>
-                    <button onClick={() => setAdminTab('risks')} className={`nav-tab ${adminTab === 'risks' ? 'active' : ''}`}>SLA Risks (Feature E)</button>
+                    <button onClick={() => setAdminTab('slapolicies')} className={`nav-tab ${adminTab === 'slapolicies' ? 'active' : ''}`}>SLA Policies</button>
+                    <button onClick={() => setAdminTab('violations')} className={`nav-tab ${adminTab === 'violations' ? 'active' : ''}`}>SLA Violations</button>
+                    <button onClick={() => setAdminTab('risks')} className={`nav-tab ${adminTab === 'risks' ? 'active' : ''}`}>SLA Risks</button>
                   </div>
 
                   <div style={{ padding: '24px' }}>
@@ -734,7 +760,7 @@ const handleChangeRole = async (u, role) => {
                                 <td style={{ fontSize: '13px' }}>{inc.assignedTechnician ? inc.assignedTechnician.name : 'Unassigned'}</td>
                                 <td>
                                   <div style={{ display: 'flex', gap: '8px' }}>
-                                    {inc.status !== 'CLOSED' && <button onClick={() => handleStatusUpdate(inc.id, 'CLOSED')} className="btn btn-success">Close</button>}
+                                    {(inc.status === 'RESOLVED' || inc.status === 'VERIFIED') && <button onClick={() => handleStatusUpdate(inc.id, 'CLOSED')} className="btn btn-success">Close</button>}
                                     <button onClick={() => fetchAuditLogs(inc.id)} className="btn btn-secondary">History</button>
                                   </div>
                                 </td>
@@ -825,9 +851,19 @@ const handleChangeRole = async (u, role) => {
                     {adminTab === 'services' && (
                       <div>
                         <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Managed Services</h3>
+                        <form onSubmit={handleAddService} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 3fr auto', gap: '12px', marginBottom: '24px' }}>
+                          <input className="input-field" placeholder="Service name" maxLength={100} required value={newService.serviceName} onChange={e => setNewService({ ...newService, serviceName: e.target.value })} />
+                          <select className="input-field" value={newService.businessCriticality} onChange={e => setNewService({ ...newService, businessCriticality: e.target.value })}>
+                            <option value="HIGH">High</option>
+                            <option value="MEDIUM">Medium</option>
+                            <option value="LOW">Low</option>
+                          </select>
+                          <input className="input-field" placeholder="Description" maxLength={255} value={newService.description} onChange={e => setNewService({ ...newService, description: e.target.value })} />
+                          <button type="submit" className="btn btn-primary">Add service</button>
+                        </form>
                         <table className="table-custom">
                           <thead>
-                            <tr><th>ID</th><th>Service Name</th><th>Criticality</th><th>Description</th></tr>
+                            <tr><th>ID</th><th>Service Name</th><th>Criticality</th><th>Description</th><th>Action</th></tr>
                           </thead>
                           <tbody>
                             {services.map(s => (
@@ -836,6 +872,7 @@ const handleChangeRole = async (u, role) => {
                                 <td style={{ fontWeight: '600' }}>{s.serviceName}</td>
                                 <td><span className="pill pill-status">{s.businessCriticality}</span></td>
                                 <td style={{ color: '#64748b' }}>{s.description}</td>
+                                <td><button onClick={() => handleDeleteService(s.id)} className="btn btn-danger">Remove</button></td>
                               </tr>
                             ))}
                           </tbody>
@@ -868,15 +905,39 @@ const handleChangeRole = async (u, role) => {
                       </div>
                     )}
       
+                    {adminTab === 'slapolicies' && (
+                      <div>
+                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '8px' }}>SLA policies</h3>
+                        <p style={{ fontSize: '13px', color: '#667085', marginBottom: '16px' }}>Changes apply to incidents created after you save.</p>
+                        <table className="table-custom">
+                          <thead><tr><th>Priority</th><th>Response (min)</th><th>Resolution (min)</th><th></th></tr></thead>
+                          <tbody>
+                            {[...slaPolicies].sort((a, b) => a.priority.localeCompare(b.priority)).map(p => (
+                              <tr key={p.id}>
+                                <td><span className={`pill pill-${p.priority}`}>{p.priority}</span></td>
+                                <td><input type="number" min="1" className="input-field" style={{ width: '120px' }}
+                                  value={slaEdits[p.id]?.responseMinutes ?? p.responseMinutes}
+                                  onChange={e => setSlaEdits(s => ({ ...s, [p.id]: { ...s[p.id], responseMinutes: e.target.value } }))} /></td>
+                                <td><input type="number" min="1" className="input-field" style={{ width: '120px' }}
+                                  value={slaEdits[p.id]?.resolutionMinutes ?? p.resolutionMinutes}
+                                  onChange={e => setSlaEdits(s => ({ ...s, [p.id]: { ...s[p.id], resolutionMinutes: e.target.value } }))} /></td>
+                                <td><button className="btn btn-primary" disabled={!slaEdits[p.id]} onClick={() => handleSaveSla(p)}>Save</button></td>
+                              </tr>
+                            ))}
+                          </tbody>
+                        </table>
+                      </div>
+                    )}
+
                     {adminTab === 'risks' && (
                       <div>
-                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#d97706' }}>⚠️ SLA Risk Detection (Feature E)</h3>
+                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#d97706' }}>SLA risk detection</h3>
                         <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px' }}>
                           Identifies open incidents approaching or at risk of breaching their SLA resolution deadlines (&lt; 2 hours remaining).
                         </p>
                         {slaRisks.length === 0 ? (
                           <div style={{ background: '#f0fdf4', color: '#166534', padding: '16px', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'center', fontWeight: '500' }}>
-                            ✨ All open incidents are on track within their SLA targets.
+                            All open incidents are on track within their SLA targets.
                           </div>
                         ) : (
                           <table className="table-custom">
@@ -911,7 +972,7 @@ const handleChangeRole = async (u, role) => {
                         <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#ef4444' }}>Active SLA Violations</h3>
                         {slaViolations.length === 0 ? (
                           <div style={{ background: '#f0fdf4', color: '#166534', padding: '16px', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'center', fontWeight: '500' }}>
-                            🎉 Outstanding! No active SLA violations detected.
+                            No active SLA violations.
                           </div>
                         ) : (
                           <table className="table-custom">
@@ -982,9 +1043,9 @@ const handleChangeRole = async (u, role) => {
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                   {notifications.filter(n => !n.read).map(n => (
-                    <div key={n.id} style={{ background: '#eff6ff', padding: '16px', borderRadius: '8px', borderLeft: '4px solid #4f46e5', transition: 'all 0.2s', position: 'relative' }}>
+                    <div key={n.id} className="notif">
                       <p style={{ fontSize: '13px', margin: '0 0 10px 0', color: '#1e293b', lineHeight: '1.4', fontWeight: '500' }}>{n.message}</p>
-                      <button onClick={() => markNotifRead(n.id)} style={{ background: 'none', border: 'none', color: '#4f46e5', cursor: 'pointer', fontSize: '12px', padding: 0, fontWeight: '700' }}>Mark as read</button>
+                      <button onClick={() => markNotifRead(n.id)} className="link-btn">Mark as read</button>
                     </div>
                   ))}
                 </div>

@@ -27,9 +27,10 @@ flowchart LR
         UC17(Close Incident)
         UC18(Auto-Escalate Breached Incident)
         UC19(Get Suggested Resolutions)
+        UC20(AI Triage and Voice Reporting)
     end
 
-    EMP --- UC1 & UC2 & UC3 & UC4 & UC5 & UC10 & UC11 & UC19
+    EMP --- UC1 & UC2 & UC3 & UC4 & UC5 & UC10 & UC11 & UC19 & UC20
     TECH --- UC1 & UC6 & UC7 & UC8 & UC9 & UC10 & UC11
     ADM --- UC1 & UC12 & UC13 & UC14 & UC15 & UC16 & UC17 & UC10 & UC11
     SYS --- UC18
