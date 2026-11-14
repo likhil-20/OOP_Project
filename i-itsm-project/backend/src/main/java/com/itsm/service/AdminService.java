@@ -21,6 +21,10 @@ public class AdminService {
     @Autowired private SystemConfigurationRepository configRepository;
     @Autowired private IncidentCategoryRepository categoryRepository;
     @Autowired private IncidentRepository incidentRepository;
+    @Autowired private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
+    @Autowired private EmailService emailService;
+
+    public static final String DEFAULT_ADMIN_EMAIL = "admin@gmail.com";
 
     // ---------- Categories ----------
 
@@ -77,6 +81,10 @@ public class AdminService {
         }
             User target = userRepository.findById(id)
         .orElseThrow(() -> new ResourceNotFoundException("User not found."));
+    
+    if (DEFAULT_ADMIN_EMAIL.equalsIgnoreCase(target.getEmail())) {
+        throw new BadRequestException("The default system admin cannot be removed.");
+    }
 
     if (target.getRole() == User.UserRole.TECHNICIAN) {
         List<Incident> mine = incidentRepository.findByAssignedTechnicianId(id);
@@ -92,6 +100,36 @@ public class AdminService {
         }
     }
         userRepository.deleteById(id);
+        
+    }
+
+        // Admin sets a new password; if none is given, the system makes a random one
+    public void resetPassword(Long id, String newPassword) {
+        User target = userRepository.findById(id)
+            .orElseThrow(() -> new ResourceNotFoundException("User not found."));
+
+        String password = newPassword == null ? "" : newPassword;
+        if (password.isBlank()) {
+            password = generateTempPassword();
+        } else if (password.length() < 6 || password.length() > 100) {
+            throw new BadRequestException("Password must be 6 to 100 characters.");
+        }
+
+        target.setPassword(passwordEncoder.encode(password));
+        userRepository.save(target);
+
+        emailService.send(target.getEmail(), "Your I-ITSM password was changed",
+            "Hello " + target.getName() + ",\n\nAn administrator changed your I-ITSM password.\n\n"
+            + "Email: " + target.getEmail() + "\nNew password: " + password
+            + "\n\nSign in at http://localhost:3000 and keep this password private.\n\nI-ITSM Service Desk");
+    }
+
+    private String generateTempPassword() {
+        String chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789";
+        java.security.SecureRandom random = new java.security.SecureRandom();
+        StringBuilder sb = new StringBuilder();
+        for (int i = 0; i < 10; i++) sb.append(chars.charAt(random.nextInt(chars.length())));
+        return sb.toString();
     }
 
     // ---------- IT services ----------

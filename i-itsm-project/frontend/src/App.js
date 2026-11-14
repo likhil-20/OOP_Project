@@ -8,6 +8,11 @@ const API = 'http://localhost:8080/api';
 
 function App() {
   const [user, setUser] = useState(null);
+  const [dark, setDark] = useState(() => { try { return localStorage.getItem('theme') === 'dark'; } catch (e) { return false; } });
+  useEffect(() => {
+    document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+    try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch (e) { /* ignore */ }
+  }, [dark]);
   const [emailInput, setEmailInput] = useState('');
   const [authMode, setAuthMode] = useState('login');
   const [reg, setReg] = useState({ name: '', email: '', password: '' });
@@ -238,6 +243,17 @@ function App() {
     loadDashboardData(user);
   };
 
+  const handleResetPassword = async (u) => {
+    const input = window.prompt(`New password for ${u.name}.\nLeave empty to generate a random one (if you type one, use 6 to 100 characters):`, '');
+    if (input === null) return;
+    try {
+      await axios.put(`${API}/admin/users/${u.id}/password`, { password: input });
+      alert(`Password updated. ${u.name} has been emailed the new password.`);
+    } catch (err) {
+      alert(err.response?.data?.error || 'Failed to update password.');
+    }
+  };
+
   const handleDeleteUser = async (id) => {
   if (window.confirm("Are you sure you want to delete this user?")) {
     try {
@@ -352,6 +368,7 @@ const handleChangeRole = async (u, role) => {
               <strong>{user.name}</strong>
               <span className="user-role">{user.role.toLowerCase()}</span>
             </div>
+            <button onClick={() => setDark(!dark)} className="btn btn-ghost">{dark ? 'Light mode' : 'Dark mode'}</button>
             <button onClick={() => setShowMail(true)} className="btn btn-ghost">Mail{mailUnread > 0 ? ` (${mailUnread})` : ''}</button>
             <button onClick={handleLogout} className="btn btn-ghost">Sign out</button>
           </div>
@@ -800,7 +817,7 @@ const handleChangeRole = async (u, role) => {
                                 <td style={{ fontWeight: '600' }}>{u.name}</td>
                                 <td>{u.email}</td>
                                 <td>
-                                  <select className="input-field" value={u.role} disabled={u.id === user.id} onChange={e => handleChangeRole(u, e.target.value)} style={{ width: '150px' }}>
+                                  <select className="input-field" value={u.role} disabled={u.id === user.id || u.email === 'admin@gmail.com'} onChange={e => handleChangeRole(u, e.target.value)} style={{ width: '150px' }}>
                                     <option value="EMPLOYEE">Employee</option>
                                     <option value="TECHNICIAN">Technician</option>
                                     <option value="ADMINISTRATOR">Administrator</option>
@@ -813,7 +830,10 @@ const handleChangeRole = async (u, role) => {
                                 <td>
                                   <div style={{ display: 'flex', gap: '8px' }}>
                                     {!u.approved && <button onClick={() => handleApproveUser(u.id)} className="btn btn-success">Approve</button>}
-                                    <button onClick={() => handleDeleteUser(u.id)} className="btn btn-danger">Delete</button>
+                                      <button onClick={() => handleResetPassword(u)} className="btn btn-secondary">Reset password</button>
+                                      {u.id !== user.id && u.email !== 'admin@gmail.com' && (
+                                      <button onClick={() => handleDeleteUser(u.id)} className="btn btn-danger">Delete</button>
+                                    )}
                                   </div>
                                 </td>
                               </tr>

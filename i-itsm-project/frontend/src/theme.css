@@ -91,3 +91,8 @@ body { margin: 0; background: var(--bg); color: var(--text); font-size: 14px; li
 .conf { height: 4px; background: #e4e7ec; border-radius: 2px; margin: 10px 0 8px; overflow: hidden; }
 .conf i { display: block; height: 100%; background: var(--accent); }
 .ai-note { font-size: 12px; color: var(--muted); }
+
+
+/* ---- Dark mode: the page colours are flipped; Mission Control is flipped back because it is already dark ---- */
+html[data-theme="dark"] { filter: invert(0.92) hue-rotate(180deg); background: #fff; }
+html[data-theme="dark"] .mc-root { filter: invert(1) hue-rotate(180deg); }

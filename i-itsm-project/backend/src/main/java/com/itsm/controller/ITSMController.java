@@ -150,6 +150,9 @@ public ResponseEntity<?> changeUserRole(@PathVariable Long id, @RequestBody Map<
     if (currentUser(request).getId().equals(id)) {
         throw new BadRequestException("You cannot change your own role.");
     }
+    if (com.itsm.service.AdminService.DEFAULT_ADMIN_EMAIL.equalsIgnoreCase(u.getEmail())) {
+        throw new BadRequestException("The default system admin's role cannot be changed.");
+    }
     String roleText = asText(payload.get("role"));
     if (isBlank(roleText)) throw new BadRequestException("Role is required.");
     User.UserRole newRole;
@@ -192,6 +195,13 @@ private String cleanSkills(String raw) {
     public ResponseEntity<?> deleteUser(@PathVariable Long id, HttpServletRequest request) {
         adminService.deleteUser(id, currentUser(request));
         return ResponseEntity.ok().build();
+    }
+        @PutMapping("/admin/users/{id}/password")
+    public ResponseEntity<?> resetUserPassword(@PathVariable Long id,
+                                               @RequestBody(required = false) Map<String, Object> payload) {
+        String newPassword = payload == null ? null : asText(payload.get("password"));
+        adminService.resetPassword(id, newPassword);
+        return ResponseEntity.ok(Map.of("message", "Password updated."));
     }
 
     // ---------- Admin: services ----------
