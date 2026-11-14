@@ -430,12 +430,12 @@ const handleChangeRole = async (u, role) => {
             {user.role === 'EMPLOYEE' && (
               <div>
                 <div className="dashboard-card">
-                  <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', color: '#0f172a', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>Report New IT Incident</h2>
+                  <h2 className="card-heading">Report New IT Incident</h2>
                   <IncidentForm user={user} categories={categories} services={services} onSubmitted={() => loadDashboardData(user)} />
                 </div>
 
-                <div className="dashboard-card" style={{ display: 'flex', gap: '12px', alignItems: 'center', background: '#fff', flexWrap: 'wrap' }}>
-                  <span style={{ fontWeight: '600', color: '#64748b', fontSize: '14px', width: '100%' }}>Filters & Search:</span>
+                <div className="dashboard-card filter-bar">
+                  <span className="filter-title">Filters & Search:</span>
                   <input type="text" className="input-field" placeholder="Search keywords, description, or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ flex: 1, minWidth: '200px' }} />
                   <select className="input-field" value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{ width: '140px' }}>
                     <option value="ALL">All Priorities</option>
@@ -467,16 +467,16 @@ const handleChangeRole = async (u, role) => {
                     <option value="ON_TRACK">On Track</option>
                     <option value="BREACHED">Breached</option>
                   </select>
-                  <label style={{ fontSize: '12px', color: '#64748b' }}>From
+                  <label className="filter-date">From
                     <input type="date" className="input-field" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} style={{ width: '150px', marginLeft: '6px' }} />
                   </label>
-                  <label style={{ fontSize: '12px', color: '#64748b' }}>To
+                  <label className="filter-date">To
                     <input type="date" className="input-field" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} style={{ width: '150px', marginLeft: '6px' }} />
                   </label>
                 </div>
 
                 <div className="dashboard-card">
-                  <h2 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '20px', color: '#0f172a' }}>My Incident History</h2>
+                  <h2 className="card-heading">My Incident History</h2>
                   <div style={{ overflowX: 'auto' }}>
                     <table className="table-custom">
                       <thead>
@@ -492,14 +492,14 @@ const handleChangeRole = async (u, role) => {
                       <tbody>
                         {filteredIncidents.map(inc => (
                           <tr key={inc.id}>
-                            <td style={{ fontWeight: '600' }}>#{inc.id} {inc.duplicate && <span className="pill" style={{ background: '#fee2e2', color: '#dc2626', marginLeft: '6px' }}>Duplicate of #{inc.duplicateOfIncidentId}</span>}</td>
+                            <td style={{ fontWeight: '600' }}>#{inc.id} {inc.duplicate && <span className="pill pill-dup">Duplicate of #{inc.duplicateOfIncidentId}</span>}</td>
                             <td>{inc.description}</td>
                             <td><span className={`pill pill-${inc.priority}`}>{inc.priority}</span></td>
                             <td><span className="pill pill-status">{inc.status}</span></td>
-                            <td style={{ fontSize: '13px' }}>
-                              {inc.resolutionDetails && <div style={{ background: '#f0fdf4', color: '#166534', padding: '6px 10px', borderRadius: '6px', border: '1px solid #bbf7d0' }}><strong>Resolved:</strong> {inc.resolutionDetails}</div>}
-                              {inc.techRequestInfo && <div style={{ background: '#fffbeb', color: '#b45309', padding: '6px 10px', borderRadius: '6px', marginTop: '6px', border: '1px solid #fde68a' }}><strong>Info Requested:</strong> {inc.techRequestInfo}</div>}
-                            </td>
+                                  <td style={{ fontSize: '13px' }}>
+                                  {inc.resolutionDetails && <div className="callout callout-ok"><strong>Resolved:</strong> {inc.resolutionDetails}</div>}
+                                  {inc.techRequestInfo && <div className="callout callout-warn"><strong>Info Requested:</strong> {inc.techRequestInfo}</div>}
+                                </td>
                             <td>
                               <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
                                 {inc.techRequestInfo && !inc.additionalInfo && (
@@ -521,7 +521,7 @@ const handleChangeRole = async (u, role) => {
                           </tr>
                         ))}
                         {filteredIncidents.length === 0 && (
-                          <tr><td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No incidents match your criteria.</td></tr>
+                          <tr><td colSpan="6" className="empty-cell">No incidents match your criteria.</td></tr>
                         )}
                       </tbody>
                     </table>
@@ -540,8 +540,8 @@ const handleChangeRole = async (u, role) => {
                   <div><span>{myOverdue}</span>Overdue</div>
                   <div><span>{myDone}</span>Resolved</div>
                 </div>
-                <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: '#fff', flexWrap: 'wrap', marginBottom: '20px', borderBottom: '1px solid #e2e8f0', paddingBottom: '16px' }}>
-                  <span style={{ fontWeight: '600', color: '#64748b', fontSize: '14px', width: '100%' }}>Filters & Search:</span>
+                <div className="filter-bar">
+                  <span className="filter-title">Filters & Search:</span>
                   <input type="text" className="input-field" placeholder="Search keywords, description, or ID..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ flex: 1, minWidth: '200px' }} />
                   <select className="input-field" value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{ width: '140px' }}>
                     <option value="ALL">All Priorities</option>
@@ -570,10 +570,10 @@ const handleChangeRole = async (u, role) => {
                     <option value="ON_TRACK">On Track</option>
                     <option value="BREACHED">Breached</option>
                   </select>
-                  <label style={{ fontSize: '12px', color: '#64748b' }}>From
+                  <label className="filter-date">From
                     <input type="date" className="input-field" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} style={{ width: '150px', marginLeft: '6px' }} />
                   </label>
-                  <label style={{ fontSize: '12px', color: '#64748b' }}>To
+                  <label className="filter-date">To
                     <input type="date" className="input-field" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} style={{ width: '150px', marginLeft: '6px' }} />
                   </label>
                 </div>
@@ -591,10 +591,10 @@ const handleChangeRole = async (u, role) => {
                     <tbody>
                       {filteredIncidents.filter(inc => inc.status !== 'CLOSED').map(inc => (
                         <tr key={inc.id}>
-                          <td style={{ fontWeight: '600' }}>#{inc.id} {inc.duplicate && <span className="pill" style={{ background: '#fee2e2', color: '#dc2626', marginLeft: '6px' }}>Duplicate of #{inc.duplicateOfIncidentId}</span>}</td>
+                          <td style={{ fontWeight: '600' }}>#{inc.id} {inc.duplicate && <span className="pill pill-dup">Duplicate of #{inc.duplicateOfIncidentId}</span>}</td>
                           <td>
                             {inc.description}
-                            {inc.additionalInfo && <div style={{ background: '#f0fdf4', color: '#166534', padding: '6px 10px', borderRadius: '6px', marginTop: '8px', fontSize: '12px', border: '1px solid #bbf7d0' }}><strong>Employee Reply:</strong> {inc.additionalInfo}</div>}
+                            {inc.additionalInfo && <div className="callout callout-ok" style={{ marginTop: '8px', fontSize: '12px' }}><strong>Employee Reply:</strong> {inc.additionalInfo}</div>}
                           </td>
                           <td><span className={`pill pill-${inc.priority}`}>{inc.priority}</span></td>
                           <td><span className="pill pill-status">{inc.status}</span></td>
@@ -616,7 +616,7 @@ const handleChangeRole = async (u, role) => {
                                   <button onClick={() => {
                                     const req = prompt("Request additional info from employee:");
                                     if (req) handleStatusUpdate(inc.id, inc.status, { techRequestInfo: req });
-                                  }} className="btn" style={{ background: '#f59e0b', color: 'white' }}>Req Info</button>
+                                  }} className="btn btn-amber">Req Info</button>
                                   <button onClick={() => {
                                     const res = prompt("Enter resolution details:");
                                     if (res) handleStatusUpdate(inc.id, 'RESOLVED', { resolutionDetails: res });
@@ -629,7 +629,7 @@ const handleChangeRole = async (u, role) => {
                         </tr>
                       ))}
                       {filteredIncidents.filter(inc => inc.status !== 'CLOSED').length === 0 && (
-                        <tr><td colSpan="5" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No active assignments match your criteria.</td></tr>
+                       <tr><td colSpan="5" className="empty-cell">No active assignments match your criteria.</td></tr>
                       )}
                     </tbody>
                   </table>
@@ -640,8 +640,8 @@ const handleChangeRole = async (u, role) => {
             {/* ADMINISTRATOR PORTAL */}
             {user.role === 'ADMINISTRATOR' && (
               <div>
-                <div className="dashboard-card" style={{ padding: '0', overflow: 'hidden' }}>
-                  <div style={{ display: 'flex', borderBottom: '1px solid #e2e8f0', background: '#f8fafc' }}>
+                <div className="dashboard-card card-flush">
+                  <div className="tab-bar">
                     <button onClick={() => setAdminTab('reports')} className={`nav-tab ${adminTab === 'reports' ? 'active' : ''}`}>Reports & Dashboards</button>
                     <button onClick={() => setAdminTab('mission')} className={`nav-tab ${adminTab === 'mission' ? 'active' : ''}`}>Mission Control</button>
                     <button onClick={() => setAdminTab('tickets')} className={`nav-tab ${adminTab === 'tickets' ? 'active' : ''}`}>Ticket Governance</button>
@@ -654,73 +654,69 @@ const handleChangeRole = async (u, role) => {
                     <button onClick={() => setAdminTab('risks')} className={`nav-tab ${adminTab === 'risks' ? 'active' : ''}`}>SLA Risks</button>
                   </div>
 
-                  <div style={{ padding: '24px' }}>
+                  <div className="tab-body">
                     {adminTab === 'mission' && <MissionControl />}
                     {adminTab === 'reports' && analytics && (
-                      <div>
-                         <h3 style={{ fontSize: '18px', fontWeight: '700', marginBottom: '24px', color: '#0f172a' }}>Global System Analytics</h3>
-                         
-                         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr)', gap: '16px', marginBottom: '32px' }}>
-                          <div className="stat-card" style={{ borderBottomColor: '#4f46e5' }}>
-                            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Total Tickets</div>
-                            <div style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', marginTop: '8px' }}>{analytics.totalIncidents}</div>
-                          </div>
-                          <div className="stat-card" style={{ borderBottomColor: '#f59e0b' }}>
-                            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Open Tickets</div>
-                            <div style={{ fontSize: '28px', fontWeight: '700', color: '#1e293b', marginTop: '8px' }}>{analytics.openIncidents}</div>
-                          </div>
-                          <div className="stat-card" style={{ borderBottomColor: '#ef4444' }}>
-                            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Critical (P1)</div>
-                            <div style={{ fontSize: '28px', fontWeight: '700', color: '#ef4444', marginTop: '8px' }}>{analytics.criticalIncidents}</div>
-                          </div>
-                          <div className="stat-card" style={{ borderBottomColor: '#10b981' }}>
-                            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>Resolved</div>
-                            <div style={{ fontSize: '28px', fontWeight: '700', color: '#10b981', marginTop: '8px' }}>{analytics.resolvedIncidents}</div>
-                          </div>
-                          <div className="stat-card" style={{ borderBottomColor: '#8b5cf6' }}>
-                            <div style={{ fontSize: '13px', color: '#64748b', fontWeight: '600', textTransform: 'uppercase' }}>SLA Breaches</div>
-                            <div style={{ fontSize: '28px', fontWeight: '700', color: '#8b5cf6', marginTop: '8px' }}>{analytics.slaViolations}</div>
-                          </div>
-                        </div>
+  <div>
+    <h3 className="section-title">Global System Analytics</h3>
 
-                        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '24px' }}>
-                          <div className="report-section">
-                             <div className="report-header">Incident Overview</div>
-                             <div className="report-row"><span>Total Incidents</span><span className="report-val">{analytics.totalIncidents}</span></div>
-                             <div className="report-row"><span>Open Incidents</span><span className="report-val">{analytics.openIncidents}</span></div>
-                             <div className="report-row"><span>Critical Incidents</span><span className="report-val">{analytics.criticalIncidents}</span></div>
-                             <div className="report-row"><span>Resolved Incidents</span><span className="report-val">{analytics.resolvedIncidents}</span></div>
-                             <div className="report-row"><span>SLA Violations</span><span className="report-val">{analytics.slaViolations}</span></div>
-                          </div>
+    <div className="stat-grid">
+      <div className="stat-card c-indigo">
+        <div className="stat-label">Total Tickets</div>
+        <div className="stat-value">{analytics.totalIncidents}</div>
+      </div>
+      <div className="stat-card c-amber">
+        <div className="stat-label">Open Tickets</div>
+        <div className="stat-value">{analytics.openIncidents}</div>
+      </div>
+      <div className="stat-card c-red">
+        <div className="stat-label">Critical (P1)</div>
+        <div className="stat-value bad">{analytics.criticalIncidents}</div>
+      </div>
+      <div className="stat-card c-green">
+        <div className="stat-label">Resolved</div>
+        <div className="stat-value ok">{analytics.resolvedIncidents}</div>
+      </div>
+      <div className="stat-card c-purple">
+        <div className="stat-label">SLA Breaches</div>
+        <div className="stat-value accent">{analytics.slaViolations}</div>
+      </div>
+    </div>
 
-                          <div className="report-section">
-                             <div className="report-header">Technician Workload</div>
-                             <div className="report-row" style={{ color: '#64748b', fontWeight: '600', textTransform: 'uppercase', fontSize: '12px' }}>
-                               <span>Technician</span><span>Active Incidents</span>
-                             </div>
-                             {analytics.technicianWorkload?.map((t, idx) => (
-                               <div key={idx} className="report-row"><span>{t.name}</span><span className="report-val">{t.active}</span></div>
-                             ))}
-                          </div>
+    <div className="report-grid">
+      <div className="report-section">
+        <div className="report-header">Incident Overview</div>
+        <div className="report-row"><span>Total Incidents</span><span className="report-val">{analytics.totalIncidents}</span></div>
+        <div className="report-row"><span>Open Incidents</span><span className="report-val">{analytics.openIncidents}</span></div>
+        <div className="report-row"><span>Critical Incidents</span><span className="report-val">{analytics.criticalIncidents}</span></div>
+        <div className="report-row"><span>Resolved Incidents</span><span className="report-val">{analytics.resolvedIncidents}</span></div>
+        <div className="report-row"><span>SLA Violations</span><span className="report-val">{analytics.slaViolations}</span></div>
+      </div>
 
-                          <div className="report-section" style={{ gridColumn: 'span 2' }}>
-                             <div className="report-header">Service Analysis</div>
-                             <div className="report-row" style={{ color: '#64748b', fontWeight: '600', textTransform: 'uppercase', fontSize: '12px' }}>
-                               <span>Service</span><span>Incidents</span>
-                             </div>
-                             {analytics.serviceAnalysis?.map((s, idx) => (
-                               <div key={idx} className="report-row"><span>{s.serviceName}</span><span className="report-val">{s.count}</span></div>
-                             ))}
-                          </div>
-                        </div>
-                      </div>
-                    )}
+      <div className="report-section">
+        <div className="report-header">Technician Workload</div>
+        <div className="report-row head"><span>Technician</span><span>Active Incidents</span></div>
+        {analytics.technicianWorkload?.map((t, idx) => (
+          <div key={idx} className="report-row"><span>{t.name}</span><span className="report-val">{t.active}</span></div>
+        ))}
+      </div>
+
+      <div className="report-section span-2">
+        <div className="report-header">Service Analysis</div>
+        <div className="report-row head"><span>Service</span><span>Incidents</span></div>
+        {analytics.serviceAnalysis?.map((s, idx) => (
+          <div key={idx} className="report-row"><span>{s.serviceName}</span><span className="report-val">{s.count}</span></div>
+        ))}
+      </div>
+    </div>
+  </div>
+)}
 
                     {adminTab === 'tickets' && (
                       <div>
-                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Global Ticket Governance</h3>
-                        <div style={{ display: 'flex', gap: '12px', alignItems: 'center', background: '#f8fafc', flexWrap: 'wrap', marginBottom: '20px', border: '1px solid #e2e8f0', padding: '16px', borderRadius: '8px' }}>
-                          <span style={{ fontWeight: '600', color: '#64748b', fontSize: '14px', width: '100%' }}>Filters & Search:</span>
+                        <h3 className="section-title">Global Ticket Governance</h3>
+                        <div className="filter-bar">
+                          <span className="filter-title">Filters & Search:</span>
                           <input type="text" className="input-field" placeholder="Search ID, description..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} style={{ flex: 1, minWidth: '150px' }} />
                           <select className="input-field" value={filterPriority} onChange={e => setFilterPriority(e.target.value)} style={{ width: '130px' }}>
                             <option value="ALL">All Priorities</option>
@@ -755,10 +751,10 @@ const handleChangeRole = async (u, role) => {
                             <option value="ON_TRACK">On Track</option>
                             <option value="BREACHED">Breached</option>
                           </select>
-                          <label style={{ fontSize: '12px', color: '#64748b' }}>From
+                          <label className="filter-date">From
                             <input type="date" className="input-field" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} style={{ width: '150px', marginLeft: '6px' }} />
                           </label>
-                          <label style={{ fontSize: '12px', color: '#64748b' }}>To
+                          <label className="filter-date">To
                             <input type="date" className="input-field" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} style={{ width: '150px', marginLeft: '6px' }} />
                           </label>
                         </div>
@@ -770,7 +766,7 @@ const handleChangeRole = async (u, role) => {
                           <tbody>
                             {filteredIncidents.map(inc => (
                               <tr key={inc.id}>
-                                <td style={{ fontWeight: '600' }}>#{inc.id} {inc.duplicate && <span className="pill" style={{ background: '#fee2e2', color: '#dc2626', marginLeft: '6px' }}>Duplicate of #{inc.duplicateOfIncidentId}</span>}</td>
+                                <td style={{ fontWeight: '600' }}>#{inc.id} {inc.duplicate && <span className="pill pill-dup">Duplicate of #{inc.duplicateOfIncidentId}</span>}</td>
                                 <td>{inc.description}</td>
                                 <td><span className={`pill pill-${inc.priority}`}>{inc.priority}</span></td>
                                 <td><span className="pill pill-status">{inc.status}</span></td>
@@ -784,7 +780,7 @@ const handleChangeRole = async (u, role) => {
                               </tr>
                             ))}
                             {filteredIncidents.length === 0 && (
-                              <tr><td colSpan="6" style={{ textAlign: 'center', padding: '32px', color: '#94a3b8' }}>No incidents match governance criteria.</td></tr>
+                              <tr><td colSpan="6" className="empty-cell">No incidents match governance criteria.</td></tr>
                             )}
                           </tbody>
                         </table>
@@ -793,7 +789,7 @@ const handleChangeRole = async (u, role) => {
 
                     {adminTab === 'users' && (
                       <div>
-                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Enterprise Directory</h3>
+                        <h3 className="section-title">Enterprise Directory</h3>
                         <form onSubmit={handleCreateUser} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr) auto', gap: '12px', marginBottom: '24px', alignItems: 'center' }}>
   <input type="text" className="input-field" placeholder="Name" maxLength={100} required value={newUser.name} onChange={e => setNewUser({ ...newUser, name: e.target.value })} />
   <input type="email" className="input-field" 	placeholder="Email" maxLength={150} required value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} />
@@ -823,9 +819,9 @@ const handleChangeRole = async (u, role) => {
                                     <option value="ADMINISTRATOR">Administrator</option>
                                   </select>
                                 </td>
-                                <td style={{ fontSize: '13px', color: '#64748b' }}>{u.skills || '-'}</td>
+                                <td className="muted">{u.skills || '-'}</td>
                                 <td>
-                                  {u.approved ? <span className="pill" style={{ background: '#dcfce7', color: '#166534' }}>Approved</span> : <span className="pill" style={{ background: '#fef3c7', color: '#b45309' }}>Pending</span>}
+                                  {u.approved ? <span className="pill pill-ok">Approved</span> : <span className="pill pill-pending">Pending</span>}
                                 </td>
                                 <td>
                                   <div style={{ display: 'flex', gap: '8px' }}>
@@ -845,7 +841,7 @@ const handleChangeRole = async (u, role) => {
 
                     {adminTab === 'categories' && (
                       <div>
-                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Category Management</h3>
+                        <h3 className="section-title">Category Management</h3>
                         <form onSubmit={handleAddCategory} style={{ display: 'flex', gap: '12px', marginBottom: '24px' }}>
                           <input type="text" className="input-field" placeholder="New category name (e.g. Cloud)..." value={newCategoryName} onChange={e => setNewCategoryName(e.target.value)} style={{ maxWidth: '300px' }} />
                           <button type="submit" className="btn btn-primary">Add Category</button>
@@ -859,7 +855,7 @@ const handleChangeRole = async (u, role) => {
                               <tr key={c.id}>
                                 <td>#{c.id}</td>
                                 <td style={{ fontWeight: '600' }}>{c.name}</td>
-                                <td style={{ color: '#64748b' }}>{c.description}</td>
+                                <td className="muted">{c.description}</td>
                                 <td><button onClick={() => handleDeleteCategory(c.id)} className="btn btn-danger">Remove</button></td>
                               </tr>
                             ))}
@@ -870,7 +866,7 @@ const handleChangeRole = async (u, role) => {
 
                     {adminTab === 'services' && (
                       <div>
-                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>Managed Services</h3>
+                        <h3 className="section-title">Managed Services</h3>
                         <form onSubmit={handleAddService} style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 3fr auto', gap: '12px', marginBottom: '24px' }}>
                           <input className="input-field" placeholder="Service name" maxLength={100} required value={newService.serviceName} onChange={e => setNewService({ ...newService, serviceName: e.target.value })} />
                           <select className="input-field" value={newService.businessCriticality} onChange={e => setNewService({ ...newService, businessCriticality: e.target.value })}>
@@ -891,7 +887,7 @@ const handleChangeRole = async (u, role) => {
                                 <td>#{s.id}</td>
                                 <td style={{ fontWeight: '600' }}>{s.serviceName}</td>
                                 <td><span className="pill pill-status">{s.businessCriticality}</span></td>
-                                <td style={{ color: '#64748b' }}>{s.description}</td>
+                                <td className="muted">{s.description}</td>
                                 <td><button onClick={() => handleDeleteService(s.id)} className="btn btn-danger">Remove</button></td>
                               </tr>
                             ))}
@@ -902,9 +898,9 @@ const handleChangeRole = async (u, role) => {
 
                     {adminTab === 'settings' && (
                       <div>
-                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px' }}>System Configuration</h3>
-                        <div style={{ background: '#f8fafc', padding: '24px', borderRadius: '12px', border: '1px solid #e2e8f0' }}>
-                          <label style={{ display: 'block', fontSize: '14px', fontWeight: '600', marginBottom: '12px', color: '#1e293b' }}>Technician Assignment Strategy</label>
+                        <h3 className="section-title">System Configuration</h3>
+                        <div className="panel">
+                          <label className="panel-label">Technician Assignment Strategy</label>
                           <select 
                             className="input-field"
                             value={configList.find(c => c.configKey === 'ASSIGNMENT_STRATEGY')?.configValue || 'SKILL_BASED'}
@@ -918,7 +914,7 @@ const handleChangeRole = async (u, role) => {
                             <option value="SKILL_BASED">Skill-Based Assignment</option>
                             <option value="LOAD_BASED">Load-Based Assignment</option>
                           </select>
-                          <p style={{ fontSize: '13px', color: '#64748b', marginTop: '12px', lineHeight: '1.5' }}>
+                          <p className="panel-hint">
                             Dynamically alters the algorithm used to route new incidents without system downtime. Active immediately.
                           </p>
                         </div>
@@ -927,8 +923,8 @@ const handleChangeRole = async (u, role) => {
       
                     {adminTab === 'slapolicies' && (
                       <div>
-                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '8px' }}>SLA policies</h3>
-                        <p style={{ fontSize: '13px', color: '#667085', marginBottom: '16px' }}>Changes apply to incidents created after you save.</p>
+                        <h3 className="section-title">SLA policies</h3>
+                        <p className="muted" style={{ fontSize: '13px', marginBottom: '16px' }}>Changes apply to incidents created after you save.</p>
                         <table className="table-custom">
                           <thead><tr><th>Priority</th><th>Response (min)</th><th>Resolution (min)</th><th></th></tr></thead>
                           <tbody>
@@ -951,12 +947,12 @@ const handleChangeRole = async (u, role) => {
 
                     {adminTab === 'risks' && (
                       <div>
-                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#d97706' }}>SLA risk detection</h3>
-                        <p style={{ fontSize: '13px', color: '#64748b', marginBottom: '16px' }}>
+                        <h3 className="section-title warn">SLA risk detection</h3>
+                       <p className="muted" style={{ fontSize: '13px', marginBottom: '16px' }}>
                           Identifies open incidents approaching or at risk of breaching their SLA resolution deadlines (&lt; 2 hours remaining).
                         </p>
                         {slaRisks.length === 0 ? (
-                          <div style={{ background: '#f0fdf4', color: '#166534', padding: '16px', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'center', fontWeight: '500' }}>
+                          <div className="callout callout-ok callout-center">
                             All open incidents are on track within their SLA targets.
                           </div>
                         ) : (
@@ -971,14 +967,14 @@ const handleChangeRole = async (u, role) => {
                                   <td><span className={`pill pill-${risk.priority}`}>{risk.priority}</span></td>
                                   <td>{risk.description}</td>
                                   <td>
-                                    <span className="pill" style={{ background: risk.riskLevel === 'VIOLATED' ? '#fee2e2' : '#fef3c7', color: risk.riskLevel === 'VIOLATED' ? '#dc2626' : '#d97706' }}>
-                                      {risk.riskLevel}
-                                    </span>
+                                    <span className={`pill ${risk.riskLevel === 'VIOLATED' ? 'pill-bad' : 'pill-pending'}`}>
+                                    {risk.riskLevel}
+                                  </span>
                                   </td>
-                                  <td style={{ fontWeight: '600', color: risk.minutesRemaining < 0 ? '#dc2626' : '#d97706' }}>
+                                  <td style={{ fontWeight: 600, color: risk.minutesRemaining < 0 ? 'var(--bad)' : 'var(--warn)' }}>
                                     {risk.minutesRemaining < 0 ? `Overdue by ${Math.abs(risk.minutesRemaining)} mins` : `${risk.minutesRemaining} mins left`}
                                   </td>
-                                  <td style={{ color: '#64748b' }}>{new Date(risk.deadline).toLocaleString()}</td>
+                                  <td className="muted">{new Date(risk.deadline).toLocaleString()}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -989,9 +985,9 @@ const handleChangeRole = async (u, role) => {
 
                     {adminTab === 'violations' && (
                       <div>
-                        <h3 style={{ fontSize: '16px', fontWeight: '700', marginBottom: '16px', color: '#ef4444' }}>Active SLA Violations</h3>
+                        <h3 className="section-title bad">Active SLA Violations</h3>
                         {slaViolations.length === 0 ? (
-                          <div style={{ background: '#f0fdf4', color: '#166534', padding: '16px', borderRadius: '8px', border: '1px solid #bbf7d0', textAlign: 'center', fontWeight: '500' }}>
+                         <div className="callout callout-ok callout-center">
                             No active SLA violations.
                           </div>
                         ) : (
@@ -1003,17 +999,17 @@ const handleChangeRole = async (u, role) => {
                               {slaViolations.map(inc => (
                                 <tr key={inc.id}>
                                   <td style={{ fontWeight: '600' }}>#{inc.id}</td>
-                                  <td><span className="pill" style={{ background: '#ef4444', color: 'white' }}>{inc.priority}</span></td>
+                                  <td><span className="pill pill-solid-bad">{inc.priority}</span></td>
                                   <td>{inc.description}</td>
-                                  <td style={{ color: '#ef4444', fontWeight: '600' }}>{new Date(inc.slaResolutionDeadline).toLocaleString()}</td>
+                                  <td style={{ color: 'var(--bad)', fontWeight: 600 }}>{new Date(inc.slaResolutionDeadline).toLocaleString()}</td>
                                 </tr>
                               ))}
                             </tbody>
                           </table>
                         )}
-                                                <h3 style={{ fontSize: '16px', fontWeight: '700', margin: '32px 0 16px 0' }}>Violation History (saved)</h3>
+                        <h3 className="section-title" style={{ marginTop: '32px' }}>Violation History (saved)</h3>
                         {slaHistory.length === 0 ? (
-                          <div style={{ color: '#94a3b8', textAlign: 'center', padding: '16px' }}>No violations recorded yet.</div>
+                          <div className="empty-cell">No violations recorded yet.</div>
                         ) : (
                           <table className="table-custom">
                             <thead>
@@ -1026,7 +1022,7 @@ const handleChangeRole = async (u, role) => {
                                   <td><span className="pill pill-status">{v.type}</span></td>
                                   <td><span className={`pill pill-${v.priority}`}>{v.priority}</span></td>
                                   <td>{new Date(v.deadline).toLocaleString()}</td>
-                                  <td style={{ color: '#ef4444', fontWeight: '600' }}>{new Date(v.detectedAt).toLocaleString()}</td>
+                                  <td style={{ color: 'var(--bad)', fontWeight: 600 }}>{new Date(v.detectedAt).toLocaleString()}</td>
                                 </tr>
                               ))}
                             </tbody>
@@ -1043,76 +1039,65 @@ const handleChangeRole = async (u, role) => {
           {/* Right Column: Notifications */}
           <div>
             <div className="dashboard-card" style={{ position: 'sticky', top: '32px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
-                <h3 style={{ fontSize: '16px', fontWeight: '700', margin: 0 }}>🔔 Notifications</h3>
-                {notifications.filter(n => !n.read).length > 0 && (
-                  <span style={{ background: '#ef4444', color: 'white', fontSize: '12px', fontWeight: '700', padding: '2px 8px', borderRadius: '999px' }}>
-                    {notifications.filter(n => !n.read).length} New
-                  </span>
-                )}
-              </div>
-              
-              {notifications.filter(n => !n.read).length > 0 && (
-                <button onClick={markAllNotifRead} className="btn btn-secondary" style={{ width: '100%', marginBottom: '12px' }}>Mark all as read</button>
-              )}
+                  <div className="notif-head">
+      <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Notifications</h3>
+      {notifications.filter(n => !n.read).length > 0 && (
+        <span className="badge-count">{notifications.filter(n => !n.read).length} New</span>
+      )}
+    </div>
 
-              {notifications.filter(n => !n.read).length === 0 ? (
-                <div style={{ textAlign: 'center', color: '#94a3b8', padding: '24px 0', fontSize: '14px' }}>
-                  You're all caught up!
-                </div>
-              ) : (
-                <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                  {notifications.filter(n => !n.read).map(n => (
-                    <div key={n.id} className="notif">
-                      <p style={{ fontSize: '13px', margin: '0 0 10px 0', color: '#1e293b', lineHeight: '1.4', fontWeight: '500' }}>{n.message}</p>
-                      <button onClick={() => markNotifRead(n.id)} className="link-btn">Mark as read</button>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
+    {notifications.filter(n => !n.read).length > 0 && (
+      <button onClick={markAllNotifRead} className="btn btn-secondary" style={{ width: '100%', marginBottom: '12px' }}>Mark all as read</button>
+    )}
+
+    {notifications.filter(n => !n.read).length === 0 ? (
+      <div className="empty-cell">You're all caught up!</div>
+    ) : (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+        {notifications.filter(n => !n.read).map(n => (
+          <div key={n.id} className="notif">
+            <p>{n.message}</p>
+            <button onClick={() => markNotifRead(n.id)} className="link-btn">Mark as read</button>
           </div>
+        ))}
+      </div>
+    )}
+    </div>
+  </div>
         </div>
       )}
-      
+
       {user && showMail && <Mailbox user={user} onClose={() => setShowMail(false)} onChanged={() => loadDashboardData(user)} />}
       {/* Audit Trail Modal */}
       {auditModalOpen && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(15, 23, 42, 0.7)', display: 'flex', justifyContent: 'center', alignItems: 'center', zIndex: 1000, backdropFilter: 'blur(4px)' }}>
-          <div className="dashboard-card" style={{ width: '600px', maxHeight: '80vh', overflowY: 'auto', margin: 0, display: 'flex', flexDirection: 'column' }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '16px', borderBottom: '1px solid #e2e8f0', paddingBottom: '12px' }}>
-              <h2 style={{ margin: 0, fontSize: '18px', fontWeight: '700', color: '#0f172a' }}>Incident #{currentAuditIncidentId} Audit Trail</h2>
-              <button onClick={() => setAuditModalOpen(false)} style={{ background: 'none', border: 'none', fontSize: '24px', cursor: 'pointer', color: '#64748b', lineHeight: 1 }}>&times;</button>
+  <div className="modal-backdrop">
+    <div className="dashboard-card modal-card audit">
+      <div className="modal-header">
+        <h2>Incident #{currentAuditIncidentId} Audit Trail</h2>
+        <button onClick={() => setAuditModalOpen(false)} className="close-btn" aria-label="Close">&times;</button>
+      </div>
+      {currentAuditLogs.length === 0 ? (
+        <p className="muted" style={{ textAlign: 'center' }}>No audit history found.</p>
+      ) : (
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {currentAuditLogs.map((log, idx) => (
+            <div key={idx} className="audit-item">
+              <div className="audit-meta">{new Date(log.timestamp).toLocaleString()} - <strong>{log.userEmail}</strong></div>
+              <div className="audit-action">{log.actionPerformed}</div>
+              <div className="audit-desc">{log.description}</div>
+              {log.previousState && log.newState && log.previousState !== log.newState && (
+                <div className="audit-state">
+                  State: <span className="pill pill-status">{log.previousState}</span> &rarr; <span className="pill pill-status">{log.newState}</span>
+                </div>
+              )}
             </div>
-            {currentAuditLogs.length === 0 ? (
-              <p style={{ color: '#64748b', fontSize: '14px', textAlign: 'center' }}>No audit history found.</p>
-            ) : (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {currentAuditLogs.map((log, idx) => (
-                  <div key={idx} style={{ padding: '14px', background: '#f8fafc', borderRadius: '8px', borderLeft: '4px solid #4f46e5' }}>
-                    <div style={{ fontSize: '12px', color: '#64748b', marginBottom: '6px' }}>
-                      {new Date(log.timestamp).toLocaleString()} - <strong>{log.userEmail}</strong>
-                    </div>
-                    <div style={{ fontSize: '14px', color: '#1e293b', fontWeight: '700', marginBottom: '4px' }}>
-                      {log.actionPerformed}
-                    </div>
-                    <div style={{ fontSize: '13px', color: '#334155' }}>
-                      {log.description}
-                    </div>
-                    {log.previousState && log.newState && log.previousState !== log.newState && (
-                      <div style={{ fontSize: '12px', marginTop: '8px', color: '#64748b', display: 'flex', alignItems: 'center', gap: '6px' }}>
-                        State: <span className="pill pill-status">{log.previousState}</span> &rarr; <span className="pill pill-status">{log.newState}</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            )}
-          </div>
+          ))}
         </div>
       )}
     </div>
+  </div>
+)}
+</div>
   );
 }
-
 export default App;

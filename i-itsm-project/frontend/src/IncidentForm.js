@@ -19,8 +19,8 @@ const EMPTY = {
   description: ''
 };
 
-const labelStyle = { display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' };
-const counterStyle = { fontSize: '11px', color: '#94a3b8', textAlign: 'right', marginTop: '4px' };
+// const labelStyle = { display: 'block', fontSize: '13px', fontWeight: '600', marginBottom: '8px', color: '#334155' };
+// const counterStyle = { fontSize: '11px', color: '#94a3b8', textAlign: 'right', marginTop: '4px' };
 
 // Converts a recording into a small 16 kHz mono WAV file (base64) that Gemini accepts
 async function blobToWavBase64(blob) {
@@ -249,7 +249,7 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
   return (
     <form onSubmit={handleSubmit} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '20px' }}>
       <div>
-        <label style={labelStyle}>Category</label>
+        <label className="form-label">Category</label>
         <select className="input-field" required value={form.category} onChange={e => setField('category', e.target.value)}>
           <option value="" disabled>Select category</option>
           {categories.map(c => <option key={c.id} value={c.name}>{c.name}</option>)}
@@ -260,13 +260,13 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
             <input type="text" className="input-field" required placeholder="Specify the category..."
               maxLength={MAX_OTHER_CATEGORY} value={form.otherCategory}
               onChange={e => setField('otherCategory', e.target.value)} />
-            <div style={counterStyle}>{form.otherCategory.length}/{MAX_OTHER_CATEGORY}</div>
+            <div className="char-count">{form.otherCategory.length}/{MAX_OTHER_CATEGORY}</div>
           </div>
         )}
       </div>
 
       <div>
-        <label style={labelStyle}>Affected Service</label>
+        <label className="form-label">Affected Service</label>
         <select className="input-field" required value={form.serviceId} onChange={e => setField('serviceId', e.target.value)}>
           <option value="" disabled>Select service</option>
           {services.map(s => <option key={s.id} value={s.id}>{s.serviceName} ({s.businessCriticality})</option>)}
@@ -277,13 +277,13 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
             <input type="text" className="input-field" required placeholder="Specify the service..."
               maxLength={MAX_OTHER_SERVICE} value={form.otherService}
               onChange={e => setField('otherService', e.target.value)} />
-            <div style={counterStyle}>{form.otherService.length}/{MAX_OTHER_SERVICE}</div>
+            <div className="char-count">{form.otherService.length}/{MAX_OTHER_SERVICE}</div>
           </div>
         )}
       </div>
 
       <div>
-        <label style={labelStyle}>Impact</label>
+        <label className="form-label">Impact</label>
         <select className="input-field" value={form.impact} onChange={e => setField('impact', e.target.value)}>
           <option value="HIGH">High</option>
           <option value="MEDIUM">Medium</option>
@@ -292,7 +292,7 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
       </div>
 
       <div>
-        <label style={labelStyle}>Urgency</label>
+        <label className="form-label">Urgency</label>
         <select className="input-field" value={form.urgency} onChange={e => setField('urgency', e.target.value)}>
           <option value="HIGH">High</option>
           <option value="MEDIUM">Medium</option>
@@ -301,13 +301,13 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
       </div>
 
       <div>
-        <label style={labelStyle}>Number of Affected Users</label>
+        <label className="form-label">Number of Affected Users</label>
         <input type="number" min="1" max="10000" className="input-field" value={form.affectedUsers}
           onChange={e => setField('affectedUsers', e.target.value)} />
       </div>
 
       <div style={{ gridColumn: 'span 2' }}>
-        <label style={labelStyle}>Description</label>
+        <label className="form-label">Description</label>
         <textarea className="input-field" required rows="3" maxLength={MAX_DESCRIPTION} value={form.description}
           placeholder="Provide clear details regarding the disruption..."
           onChange={e => {
@@ -316,7 +316,7 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
             clearTimeout(debounce.current);
             debounce.current = setTimeout(() => fetchSuggestions(form.category, v), 600);
           }}></textarea>
-        <div style={counterStyle}>{form.description.length}/{MAX_DESCRIPTION}</div>
+        <div className="char-count">{form.description.length}/{MAX_DESCRIPTION}</div>
 
         <div className="ai-bar">
           <button type="button" className="btn btn-secondary" onClick={() => runTriage()} disabled={analyzing || submitting}>
@@ -337,13 +337,13 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
             <div className="ai-note">{triage.confidence}% confidence. {triage.reason} The fields above were filled in for you; please review them before submitting.</div>
           </div>
         )}
-        {suggested.length > 0 && (
-          <div style={{ marginTop: '12px', background: '#f8fafc', border: '1px solid #cbd5e1', borderRadius: '8px', padding: '12px' }}>
-            <div style={{ fontSize: '13px', fontWeight: '700', color: '#4f46e5', marginBottom: '8px' }}>Suggested resolutions from similar past incidents.</div>
+                {suggested.length > 0 && (
+          <div className="suggest-box">
+            <div className="suggest-title">Suggested resolutions from similar past incidents.</div>
             {suggested.map((s, idx) => (
-              <div key={idx} style={{ fontSize: '13px', padding: '6px 0', borderBottom: idx < suggested.length - 1 ? '1px dashed #e2e8f0' : 'none' }}>
+              <div key={idx} className="suggest-item">
                 <div><strong>Past Issue #{s.matchedIncidentId}:</strong> {s.pastDescription}</div>
-                <div style={{ color: '#166534', marginTop: '2px' }}><strong>Resolution:</strong> {s.resolutionDetails}</div>
+                <div className="suggest-res"><strong>Resolution:</strong> {s.resolutionDetails}</div>
               </div>
             ))}
           </div>
