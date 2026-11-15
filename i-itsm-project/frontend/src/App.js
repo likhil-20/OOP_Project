@@ -27,7 +27,7 @@ function explainPriority(inc) {
 
 function App() {
   const [user, setUser] = useState(null);
-  const [dark, setDark] = useState(() => { try { return localStorage.getItem('theme') === 'dark'; } catch (e) { return false; } });
+  const [dark, setDark] = useState(() => { try { return localStorage.getItem('theme') !== 'light'; } catch (e) { return true; } });
   useEffect(() => {
     document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
     try { localStorage.setItem('theme', dark ? 'dark' : 'light'); } catch (e) { /* ignore */ }
@@ -387,7 +387,7 @@ const handleChangeRole = async (u, role) => {
               <strong>{user.name}</strong>
               <span className="user-role">{user.role.toLowerCase()}</span>
             </div>
-            <button onClick={() => setDark(!dark)} className="btn btn-ghost">{dark ? 'Light mode' : 'Dark mode'}</button>
+            <button onClick={() => setDark(!dark)} className="btn btn-ghost theme-toggle" title={dark ? 'Switch to light mode' : 'Switch to dark mode'} aria-label="Toggle theme">{dark ? '☀️' : '🌙'}</button>
             <button onClick={() => setShowMail(true)} className="btn btn-ghost">Mail{mailUnread > 0 ? ` (${mailUnread})` : ''}</button>
             <button onClick={handleLogout} className="btn btn-ghost">Sign out</button>
           </div>

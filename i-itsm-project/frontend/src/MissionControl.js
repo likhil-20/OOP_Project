@@ -65,10 +65,12 @@ function Spark({ points, color }) {
   );
 }
 
-function heatColor(v, max) {
-  if (!v) return 'rgba(255,255,255,0.05)';
+function heatColor(v, max, dark = true) {
+  if (!v) return dark ? 'rgba(255,255,255,0.05)' : 'rgba(15,23,42,0.05)';
   const t = Math.min(1, v / Math.max(1, max));
-  const stops = [[49, 46, 129], [99, 102, 241], [199, 210, 254]];
+  const stops = dark
+    ? [[49, 46, 129], [99, 102, 241], [199, 210, 254]]
+    : [[224, 231, 255], [129, 140, 248], [67, 56, 202]];
   const lo = t < 0.5 ? stops[0] : stops[1];
   const hi = t < 0.5 ? stops[1] : stops[2];
   const f = t < 0.5 ? t * 2 : (t - 0.5) * 2;
@@ -134,12 +136,80 @@ const CSS = `
 @media (max-width:1150px){.mc-cards{grid-template-columns:repeat(2,1fr)}.mc-main{grid-template-columns:1fr}}
 `;
 
+// Watches the <html data-theme> attribute so Mission Control follows the app theme
+function useIsDark() {
+  const read = () => document.documentElement.getAttribute('data-theme') !== 'light';
+  const [dark, setDark] = useState(read);
+  useEffect(() => {
+    const obs = new MutationObserver(() => setDark(read()));
+    obs.observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
+    return () => obs.disconnect();
+  }, []);
+  return dark;
+}
+
+// Animations, skeletons, and the light theme (dark is the base CSS above)
+const CSS_EXTRA = `
+@keyframes mcRise{from{opacity:0;transform:translateY(14px)}to{opacity:1;transform:none}}
+@keyframes mcShimmer{0%{background-position:-800px 0}100%{background-position:800px 0}}
+@keyframes mcBar{0%{transform:translateX(-100%)}100%{transform:translateX(260%)}}
+.mc-root{position:relative;overflow:hidden;transition:background .25s,color .25s}
+.mc-card{animation:mcRise .55s ease both;transition:background .25s,border-color .25s}
+.mc-cards .mc-card:nth-child(2){animation-delay:.06s}
+.mc-cards .mc-card:nth-child(3){animation-delay:.12s}
+.mc-cards .mc-card:nth-child(4){animation-delay:.18s}
+.mc-cards .mc-card:nth-child(5){animation-delay:.24s}
+.mc-main .mc-card:nth-child(1){animation-delay:.3s}
+.mc-main .mc-card:nth-child(2){animation-delay:.38s}
+.mc-main .mc-card:nth-child(3){animation-delay:.46s}
+.mc-heat div{transition:background .6s ease}
+.mc-progress{position:absolute;top:0;left:0;right:0;height:3px;opacity:0;transition:opacity .3s;overflow:hidden;pointer-events:none}
+.mc-progress.on{opacity:1}
+.mc-progress i{display:block;width:40%;height:100%;background:linear-gradient(90deg,transparent,#6366f1,transparent)}
+.mc-progress.on i{animation:mcBar 1s ease-in-out infinite}
+.mc-skel{background:linear-gradient(90deg,rgba(255,255,255,.04) 25%,rgba(255,255,255,.11) 50%,rgba(255,255,255,.04) 75%);background-size:800px 100%;animation:mcShimmer 1.4s linear infinite;border-radius:16px}
+.mc-sk-card{height:132px}
+.mc-sk-big{height:300px}
+.mc-evt{color:#f1f5f9}
+.mc-amber{color:#fbbf24}
+.mc-green{color:#86efac}
+
+.mc-light{background:#f1f5f9;color:#0f172a;border:1px solid #e2e8f0}
+.mc-light .mc-title{color:#0f172a}
+.mc-light .mc-sub,.mc-light .mc-live,.mc-light .mc-lbl,.mc-light .mc-delta,.mc-light .mc-h,.mc-light .mc-leg,.mc-light .mc-heat,.mc-light .mc-ev .mc-ed,.mc-light .mc-ring small,.mc-light .mc-empty{color:#64748b}
+.mc-light .mc-ev time{color:#94a3b8}
+.mc-light .mc-card{background:#ffffff;border-color:#e2e8f0;box-shadow:0 1px 2px rgba(16,24,40,.06)}
+.mc-light .mc-crit{border-color:rgba(239,68,68,.55)}
+.mc-light .mc-num{color:#0f172a}
+.mc-light .mc-crit .mc-num{color:#b91c1c}
+.mc-light .mc-amber{color:#b45309}
+.mc-light .mc-green{color:#15803d}
+.mc-light .mc-bar{color:#334155}
+.mc-light .mc-bar .mc-bt{background:#e2e8f0}
+.mc-light .mc-ring{background:#f8fafc}
+.mc-light .mc-ring b{color:#0f172a}
+.mc-light .mc-track{stroke:#e2e8f0}
+.mc-light .mc-ringtext{fill:#0f172a}
+.mc-light .mc-ev{background:#f8fafc}
+.mc-light .mc-ev.mc-new{background:#eef2ff;border-color:#a5b4fc}
+.mc-light .mc-evt{color:#0f172a}
+.mc-light .mc-leg i{background:linear-gradient(90deg,#e0e7ff,#818cf8,#4338ca)}
+.mc-light .mc-p1{background:#fee2e2;color:#b91c1c}
+.mc-light .mc-p2{background:#fef3c7;color:#92400e}
+.mc-light .mc-p3{background:#dbeafe;color:#1e40af}
+.mc-light .mc-skel{background:linear-gradient(90deg,#e2e8f0 25%,#f8fafc 50%,#e2e8f0 75%);background-size:800px 100%}
+`;
+
 export default function MissionControl() {
   const [data, setData] = useState({ analytics: null, risks: [], incidents: [], history: [], activity: [] });
   const [updated, setUpdated] = useState(null);
   const baseId = useRef(null); // newest event id when the screen opened
+  const [loaded, setLoaded] = useState(false);       // false until the first load finishes (shows skeleton)
+  const [refreshing, setRefreshing] = useState(false); // true briefly on every refresh (shows top bar)
+  const dark = useIsDark();
 
   const load = async () => {
+    setRefreshing(true);
     const r = await Promise.allSettled([
       axios.get(`${API}/analytics`),
       axios.get(`${API}/admin/sla-risks`),
@@ -160,6 +230,8 @@ export default function MissionControl() {
       activity: pick(4, prev.activity)
     }));
     setUpdated(new Date());
+    setLoaded(true);
+    setTimeout(() => setRefreshing(false), 700);
   };
 
   useEffect(() => {
@@ -195,9 +267,34 @@ export default function MissionControl() {
   const total = a ? a.totalIncidents : 0;
   const donePct = total ? Math.round(((a ? a.resolvedIncidents : 0) / total) * 100) : 0;
 
+  if (!loaded) {
+    return (
+      <div className={`mc-root ${dark ? '' : 'mc-light'}`}>
+        <style>{CSS + CSS_EXTRA}</style>
+        <div className="mc-progress on"><i /></div>
+        <div className="mc-top">
+          <div className="mc-brand">
+            <div className="mc-logo">I-ITSM</div>
+            <div>
+              <div className="mc-title">Mission Control</div>
+              <div className="mc-sub">Loading live data…</div>
+            </div>
+          </div>
+        </div>
+        <div className="mc-cards">
+          {[0, 1, 2, 3, 4].map(i => <div key={i} className="mc-skel mc-sk-card" />)}
+        </div>
+        <div className="mc-main">
+          {[0, 1, 2].map(i => <div key={i} className="mc-skel mc-sk-big" />)}
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="mc-root">
-      <style>{CSS}</style>
+    <div className={`mc-root ${dark ? '' : 'mc-light'}`}>
+      <style>{CSS + CSS_EXTRA}</style>
+      <div className={`mc-progress ${refreshing ? 'on' : ''}`}><i /></div>
 
       <div className="mc-top">
         <div className="mc-brand">
@@ -225,8 +322,8 @@ export default function MissionControl() {
         </div>
         <div className="mc-card">
           <div className="mc-lbl">SLA at risk</div>
-          <div className="mc-num" style={{ color: '#fbbf24' }}>{nRisk}</div>
-          <div className="mc-delta" style={{ color: '#fbbf24' }}>under 2 hours left</div>
+          <div className="mc-num mc-amber">{nRisk}</div>
+          <div className="mc-delta mc-amber">under 2 hours left</div>
           <div style={{ height: 34 }} />
         </div>
         <div className="mc-card">
@@ -237,8 +334,8 @@ export default function MissionControl() {
         </div>
         <div className="mc-card">
           <div className="mc-lbl">Resolved</div>
-          <div className="mc-num" style={{ color: '#86efac' }}>{nDone}</div>
-          <div className="mc-delta" style={{ color: '#86efac' }}>{donePct}% of all tickets</div>
+          <div className="mc-num mc-green">{nDone}</div>
+          <div className="mc-delta mc-green">{donePct}% of all tickets</div>
           <div style={{ height: 34 }} />
         </div>
       </div>
@@ -256,7 +353,7 @@ export default function MissionControl() {
                 <div className="mc-dd">{DAYS[di]}</div>
                 {row.map((v, h) => (
                   <div key={h} title={`${DAYS[di]} ${h}:00 · ${v} incident(s)`}
-                    style={{ background: heatColor(v, max), color: v / Math.max(1, max) > 0.6 ? '#1e1b4b' : '#e0e7ff' }}>
+                    style={{ background: heatColor(v, max, dark), color: dark ? (v / Math.max(1, max) > 0.6 ? '#1e1b4b' : '#e0e7ff') : (v / Math.max(1, max) > 0.5 ? '#ffffff' : '#312e81') }}>
                     {v || ''}
                   </div>
                 ))}
@@ -294,10 +391,10 @@ export default function MissionControl() {
             return (
               <div className="mc-ring" key={r.id}>
                 <svg width="60" height="60" viewBox="0 0 60 60" style={{ flex: 'none' }}>
-                  <circle cx="30" cy="30" r="22" fill="none" stroke="#1e293b" strokeWidth="7" />
+                  <circle className="mc-track" cx="30" cy="30" r="22" fill="none" stroke="#1e293b" strokeWidth="7" />
                   <circle className="mc-arc" cx="30" cy="30" r="22" fill="none" stroke={color} strokeWidth="7"
                     strokeLinecap="round" strokeDasharray={C} strokeDashoffset={C * (1 - pct)} transform="rotate(-90 30 30)" />
-                  <text x="30" y="34" textAnchor="middle" fontSize="12" fontWeight="700" fill="#e2e8f0">{fmtLeft(r.minutesRemaining)}</text>
+                  <text className="mc-ringtext" x="30" y="34" textAnchor="middle" fontSize="12" fontWeight="700" fill="#e2e8f0">{fmtLeft(r.minutesRemaining)}</text>
                 </svg>
                 <div style={{ minWidth: 0 }}>
                   <b><span className={`mc-tag ${prioClass(r.priority)}`}>{r.priority}</span>#{r.id}</b>
@@ -316,7 +413,7 @@ export default function MissionControl() {
               <time>{String(e.timestamp || '').slice(11, 16)}</time>
               <span className="mc-ic" style={{ background: eventColor(e.actionPerformed) }} />
               <div className="mc-et">
-                <b style={{ color: '#f1f5f9' }}>{String(e.actionPerformed || '').replace(/_/g, ' ')}</b>
+                <b className="mc-evt">{String(e.actionPerformed || '').replace(/_/g, ' ')}</b>
                 {e.incidentId ? ` · #${e.incidentId}` : ''}
                 <div className="mc-ed">{e.description}</div>
               </div>

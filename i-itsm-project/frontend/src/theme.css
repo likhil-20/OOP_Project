@@ -248,7 +248,8 @@ html[data-theme="dark"] .btn-success, html[data-theme="dark"] .btn-danger, html[
 
 /* ============ MISSION CONTROL ============ */
 /* It is already dark by itself, so nothing is inverted any more. */
-.mc-root { color-scheme: dark; }
+.theme-toggle { font-size: 18px; padding: 4px 10px; transition: transform .3s ease; }
+.theme-toggle:hover { transform: rotate(25deg) scale(1.1); }
 
 /* ============ RESPONSIVE (basic) ============ */
 @media (max-width: 1000px) {
