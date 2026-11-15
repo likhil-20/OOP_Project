@@ -58,7 +58,7 @@ public interface IncidentRepository extends JpaRepository<Incident, Long> {
          + "and (i.escalated is null or i.escalated = false)")
     List<Incident> findEscalationCandidates(@Param("finished") Collection<String> finished);
 
-    @EntityGraph(attributePaths = {"affectedService"})
+    @EntityGraph(attributePaths = {"reporter", "assignedTechnician", "affectedService"})
     @Query("select i from Incident i where i.status <> 'CLOSED' "
          + "and upper(i.category) = upper(:category) and i.priority = :priority "
          + "and i.affectedService.id = :serviceId")
