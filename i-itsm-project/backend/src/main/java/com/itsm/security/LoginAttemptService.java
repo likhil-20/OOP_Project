@@ -20,6 +20,7 @@ public class LoginAttemptService {
     private static class Record {
         int failures = 0;
         LocalDateTime lockedUntil = null;
+        LocalDateTime lastFailure = LocalDateTime.now();
     }
 
     private final int maxAttempts;
@@ -51,11 +52,16 @@ public class LoginAttemptService {
         attempts.remove(key); // lock has expired, start fresh
     }
 
-    public synchronized void recordFailure(String key) {
+        public synchronized void recordFailure(String key) {
+        LocalDateTime now = LocalDateTime.now();
+        attempts.values().removeIf(rec -> rec.lockedUntil == null
+            ? rec.lastFailure.plus(lockDuration).isBefore(now)
+            : rec.lockedUntil.isBefore(now));
         Record r = attempts.computeIfAbsent(key, k -> new Record());
         r.failures++;
+        r.lastFailure = now;
         if (r.failures >= maxAttempts) {
-            r.lockedUntil = LocalDateTime.now().plus(lockDuration);
+            r.lockedUntil = now.plus(lockDuration);
         }
     }
 

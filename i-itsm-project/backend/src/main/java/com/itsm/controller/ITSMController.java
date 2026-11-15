@@ -46,6 +46,8 @@ public class ITSMController {
     @Autowired private org.springframework.security.crypto.password.PasswordEncoder passwordEncoder;
     @Autowired private com.itsm.service.EmailService emailService;
     @Autowired private TriageService triageService;
+    @Autowired private com.itsm.security.RateLimiter rateLimiter;
+
     // The logged-in user, put there by AuthInterceptor after checking the token
     private User currentUser(HttpServletRequest request) {
         return (User) request.getAttribute("authUser");
@@ -242,18 +244,22 @@ private String cleanSkills(String raw) {
     }
 
     @PostMapping("/incidents/triage")
-    public ResponseEntity<?> triage(@Valid @RequestBody TriageRequest req) {
+    public ResponseEntity<?> triage(@Valid @RequestBody TriageRequest req, HttpServletRequest request) {
+        rateLimiter.check("ai:" + currentUser(request).getEmail(), 15, 60_000);
         return ResponseEntity.ok(triageService.triage(req.description()));
     }
 
     @PostMapping("/incidents/transcribe")
-    public ResponseEntity<?> transcribe(@Valid @RequestBody TranscribeRequest req) {
+    public ResponseEntity<?> transcribe(@Valid @RequestBody TranscribeRequest req, HttpServletRequest request) {
+        rateLimiter.check("ai:" + currentUser(request).getEmail(), 15, 60_000);
         return ResponseEntity.ok(Map.of("text", triageService.transcribe(req.audio(), req.mimeType())));
     }
 
     @GetMapping("/incidents/suggested-resolution")
     public ResponseEntity<?> getSuggestedResolution(@RequestParam(required = false) String category,
-                                                    @RequestParam(required = false) String description) {
+                                                    @RequestParam(required = false) String description,
+                                                    HttpServletRequest request) {
+        rateLimiter.check("ai:" + currentUser(request).getEmail(), 15, 60_000);
         return ResponseEntity.ok(incidentService.getSuggestedResolutions(category, description));
     }
 

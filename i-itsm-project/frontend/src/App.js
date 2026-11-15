@@ -473,6 +473,7 @@ const handleChangeRole = async (u, role) => {
                     <option value="ACKNOWLEDGED">Acknowledged</option>
                     <option value="IN_PROGRESS">In Progress</option>
                     <option value="RESOLVED">Resolved</option>
+                    <option value="VERIFIED">Verified</option>
                     <option value="CLOSED">Closed</option>
                   </select>
                   <select className="input-field" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ width: '140px' }}>
@@ -578,6 +579,7 @@ const handleChangeRole = async (u, role) => {
                     <option value="ACKNOWLEDGED">Acknowledged</option>
                     <option value="IN_PROGRESS">In Progress</option>
                     <option value="RESOLVED">Resolved</option>
+                    <option value="VERIFIED">Verified</option>
                   </select>
                   <select className="input-field" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ width: '140px' }}>
                     <option value="ALL">All Categories</option>
@@ -755,6 +757,7 @@ const handleChangeRole = async (u, role) => {
                             <option value="ASSIGNED">Assigned</option>
                             <option value="IN_PROGRESS">In Progress</option>
                             <option value="RESOLVED">Resolved</option>
+                            <option value="VERIFIED">Verified</option>
                             <option value="CLOSED">Closed</option>
                           </select>
                           <select className="input-field" value={filterCategory} onChange={e => setFilterCategory(e.target.value)} style={{ width: '130px' }}>

@@ -336,6 +336,21 @@ public class IncidentService {
             throw new InvalidStateTransitionException(oldStatus, newStatus);
         }
 
+        // Field-level rules: each field can only be written by its intended role
+        boolean isTech = me.getRole() == User.UserRole.TECHNICIAN;
+        boolean isEmp = me.getRole() == User.UserRole.EMPLOYEE;
+        if (isEmp && (payload.containsKey("investigationNotes")
+                || payload.containsKey("resolutionDetails")
+                || payload.containsKey("techRequestInfo"))) {
+            throw new ForbiddenException("Only technicians or admins can add investigation, resolution or request details.");
+        }
+        if (isTech && payload.containsKey("additionalInfo")) {
+            throw new ForbiddenException("Only the reporting employee can add additional information.");
+        }
+        if (payload.get("feedbackRating") != null && !isEmp) {
+            throw new ForbiddenException("Only the employee who reported the incident can give feedback.");
+        }
+
         // Apply changes
         inc.setStatus(newStatus);
                 if (!newStatus.equals(oldStatus) && inc.getAcknowledgedAt() == null
