@@ -35,14 +35,20 @@ docker compose --env-file .env.local --profile local up -d --build db backend fr
 ```
 Wait about 40 seconds, then open http://localhost:3000
 
-Default accounts (created automatically on first start):
+Default login details (demo accounts)
 
-| Role | Email | Password |
-|---|---|---|
-| Admin | admin@gmail.com | admin123 |
-| Technician | tech.alice@gmail.com | tech123 |
-| Technician | tech.bob@gmail.com | tech123 |
-| Employee | employee@gmail.com | emp123 |
+ADMIN
+admin@gmail.com / admin123
+
+TECHNICIANS
+tech.alice@gmail.com / tech123   (skills: APPLICATION, DATABASE, NETWORK, SECURITY, HARDWARE)
+tech.bob@gmail.com / tech123     (skills: SOFTWARE, CLOUD, STORAGE)
+
+EMPLOYEES
+employee@gmail.com / emp123        (John Employee)
+sarah.employee@gmail.com / emp123  (Sarah Employee)
+rahul.employee@gmail.com / emp123  (Rahul Employee)
+meera.employee@gmail.com / emp123  (Meera Employee)
 
 Your login is remembered for 8 hours, even after rebuilding Docker.
 
