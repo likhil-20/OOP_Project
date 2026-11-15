@@ -73,4 +73,8 @@ Patterns: **Strategy**, **Observer**, **Factory**, **Adapter**, **Repository**, 
 39 documented test cases in `backend/TEST_CASES.md`: lifecycle, login lockout, assignment strategies, validation, priority, duplicates, role rules, SLA monitoring, AI triage and fallback, and authorization.
 
 # 9. Limitations and Future Work
+- Simulated emails for admin-created accounts and password resets contain the temporary password in plain text (acceptable because email is simulated; a real deployment would send a one-time reset link).
+- data.sql is skipped by Spring Boot for non-embedded databases; DataInitializer is the real seeder. Lombok is declared but unused.
+- Timestamps are stored without a time zone; the backend runs in Asia/Kolkata (TZ set in docker-compose.yml).
+- Test coverage does not yet include AdminService, EscalationService, the controller or frontend tests.
 See `technology-report.md`.
