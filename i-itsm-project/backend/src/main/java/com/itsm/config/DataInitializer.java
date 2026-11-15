@@ -50,18 +50,28 @@ public class DataInitializer {
             }
         }
 
-        if (serviceRepository.count() == 0) {
-            createService("Payment Application", "HIGH", "Core transaction processing");
-            createService("Authentication Service", "HIGH", "OAuth & SSO provider");
-            createService("Internal HR Portal", "LOW", "HR records portal");
-        }
+        // Any missing default service is added on every start
+        createService("Payment Application", "HIGH", "Core transaction processing");
+        createService("Authentication Service", "HIGH", "OAuth & SSO provider");
+        createService("Internal HR Portal", "LOW", "HR records portal");
+        createService("Email & Messaging", "MEDIUM", "Company email, calendar and chat");
+        createService("VPN & Remote Access", "HIGH", "Remote work and secure access");
+        createService("Corporate Wi-Fi & LAN", "HIGH", "Office wired and wireless network");
+        createService("Customer Database", "HIGH", "Customer records and orders");
+        createService("Cloud Hosting Platform", "HIGH", "Servers, CDN and DNS for company apps");
+        createService("Company Website", "MEDIUM", "Public website and landing pages");
+        createService("File Server & Shared Drives", "MEDIUM", "Team documents and shared folders");
+        createService("Backup & Recovery", "MEDIUM", "Scheduled backups and restores");
+        createService("Payroll & Finance System", "HIGH", "Salaries, invoices and accounting");
+        createService("CRM Platform", "MEDIUM", "Sales leads and customer follow-ups");
+        createService("Printing Services", "LOW", "Office printers and scanners");
+        createService("Video Conferencing", "LOW", "Online meetings and webinars");
 
-        if (slaPolicyRepository.count() == 0) {
-            createSla("P1", 5, 30);
-            createSla("P2", 15, 120);
-            createSla("P3", 60, 480);
-            createSla("P4", 240, 1440);
-        }
+        createSla("P1", 5, 30);
+        createSla("P2", 15, 120);
+        createSla("P3", 60, 480);
+        createSla("P4", 240, 1440);
+        createSla("P5", 480, 4320);
 
         if (configRepository.count() == 0) {
             SystemConfiguration cfg = new SystemConfiguration();
@@ -83,6 +93,7 @@ public class DataInitializer {
     }
 
     private void createService(String name, String criticality, String description) {
+        if (serviceRepository.existsByServiceName(name)) return;
         ItService s = new ItService();
         s.setServiceName(name);
         s.setBusinessCriticality(criticality);
@@ -91,6 +102,7 @@ public class DataInitializer {
     }
 
     private void createSla(String priority, int resp, int res) {
+        if (slaPolicyRepository.findByPriority(priority).isPresent()) return;
         SlaPolicy p = new SlaPolicy();
         p.setPriority(priority);
         p.setResponseMinutes(resp);

@@ -113,7 +113,8 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
         category: match ? match.name : OTHER,
         serviceId: svc ? String(svc.id) : f.serviceId,
         impact: t.impact || f.impact,
-        urgency: t.urgency || f.urgency
+        urgency: t.urgency || f.urgency,
+        affectedUsers: t.affectedUsers ? String(t.affectedUsers) : f.affectedUsers
       }));
       setTriage(t);
     } catch (err) {
@@ -334,7 +335,7 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
               <span className="ai-source">{triage.source === 'GEMINI' ? 'Gemini' : 'Rule-based fallback'}</span>
             </div>
             <div className="conf"><i style={{ width: `${triage.confidence}%` }} /></div>
-            <div className="ai-note">{triage.confidence}% confidence. {triage.reason} The fields above were filled in for you; please review them before submitting.</div>
+            <div className="ai-note">{triage.confidence}% confidence. {triage.reason} Estimated affected users: {triage.affectedUsers ?? 1}. The fields above were filled in for you; please review them before submitting.</div>
           </div>
         )}
                 {suggested.length > 0 && (

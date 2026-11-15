@@ -24,7 +24,7 @@ Run all tests: `cd i-itsm-project/backend` then `mvn test`
 | TC-18 | DtoValidationTest | Incident description over 2000 characters | Validation error |
 | TC-19 | DtoValidationTest | Correct incident request | No validation errors |
 | TC-20 | IncidentServiceTest | HIGH impact/urgency, critical service, 200 users | Priority P1 |
-| TC-21 | IncidentServiceTest | LOW impact/urgency, 1 user | Priority P4 |
+| TC-21 | IncidentServiceTest | LOW impact/urgency, 1 user | Priority P5 |
 | TC-22 | IncidentServiceTest | Same description/category/service/priority as open incident | Marked duplicate of that incident |
 | TC-23 | IncidentServiceTest | Employee sets IN_PROGRESS | Forbidden (403) |
 | TC-24 | IncidentServiceTest | Resolve without resolution details | Bad request (400) |
@@ -41,3 +41,5 @@ Run all tests: `cd i-itsm-project/backend` then `mvn test`
 | TC-35 | AuthInterceptorTest | Employee calls /api/admin/users | 403 |
 | TC-36 | AuthInterceptorTest | Administrator calls /api/admin/users | Allowed |
 | TC-37 | AssignmentStrategyTest | Deadline-aware assignment, two skilled technicians | Technician with the furthest nearest-deadline chosen |
+| TC-38 | IncidentServiceTest | MEDIUM impact, LOW urgency, 1 user | Priority P4 |
+| TC-39 | TriageTest | Keyword classifier, outage affecting everyone | Affected users estimated at 100 or more |

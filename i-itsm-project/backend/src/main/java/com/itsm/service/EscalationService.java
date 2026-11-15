@@ -83,6 +83,7 @@
 
        // One step more urgent. P1 stays P1.
        private String raise(String priority) {
+           if ("P5".equals(priority)) return "P4";
            if ("P4".equals(priority)) return "P3";
            if ("P3".equals(priority)) return "P2";
            if ("P2".equals(priority)) return "P1";

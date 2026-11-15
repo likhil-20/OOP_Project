@@ -15,7 +15,7 @@ Intelligent IT Service Management system: employees report IT incidents, the sys
 | FR1 | Users register; accounts stay pending until an administrator approves them. |
 | FR2 | Users log in with email and password and receive a JWT valid for 8 hours. |
 | FR3 | Employees create incidents (category, service, impact, urgency, affected users, description). |
-| FR4 | The system calculates priority P1 to P4 from impact, service criticality, affected users and urgency. |
+| FR4 | The system calculates priority P1 to P5 from impact, service criticality, affected users and urgency. |
 | FR5 | The system sets SLA response and resolution deadlines from the SLA policy of that priority. |
 | FR6 | The system detects probable duplicate incidents and flags them. |
 | FR7 | The system auto-assigns a technician using the configured strategy (skill-based or load-based). |

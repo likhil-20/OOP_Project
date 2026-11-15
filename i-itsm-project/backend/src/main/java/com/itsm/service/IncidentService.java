@@ -198,8 +198,9 @@ public class IncidentService {
 
         if (effectiveImpact == 3 && urg == 3) return "P1";
         if (effectiveImpact == 3 || urg == 3) return "P2";
-        if (effectiveImpact == 1 && urg == 1) return "P4";
-        return "P3";
+        if (effectiveImpact == 1 && urg == 1) return "P5";
+        if (effectiveImpact == 2 && urg == 2) return "P3";
+        return "P4";
     }
 
     // ---------- Duplicate detection ----------

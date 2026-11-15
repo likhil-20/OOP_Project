@@ -29,6 +29,8 @@ public class KeywordClassifier implements IncidentClassifier {
     private static final List<String> WIDE = List.of("everyone", "all users", "all employees", "entire",
         "whole", "production", "outage", "nobody", "no one");
     private static final List<String> MINOR = List.of("slow", "minor", "cosmetic", "when possible", "sometimes");
+    private static final List<String> TEAM = List.of("team", "department", "floor", "block", "office",
+        "several", "many", "multiple", "colleagues");
     private static final Set<String> GENERIC = Set.of("service", "application", "portal", "internal", "system");
 
     @Override
@@ -60,11 +62,12 @@ public class KeywordClassifier implements IncidentClassifier {
         }
 
         int confidence = bestScore == 0 ? 30 : Math.min(85, 50 + 15 * bestScore);
+        int users = anyMatch(text, words, WIDE) ? 500 : anyMatch(text, words, TEAM) ? 20 : 1;
         String reason = best == null
             ? "No clear keywords found, so the category was left as Others."
             : "Keyword rules matched the " + best + " category.";
         return new TriageResult(best != null ? best : "Others", impact, urgency, serviceId,
-            confidence, reason, "KEYWORD");
+            confidence, reason, "KEYWORD", users);
     }
 
     private static boolean matches(String text, Set<String> words, String kw) {

@@ -84,4 +84,11 @@ class TriageTest {
         assertEquals("GEMINI", second.source());
         verify(gemini, times(1)).classify(any(), any(), any());
     }
+
+    @Test
+    @DisplayName("TC-39: Keyword classifier estimates many affected users for a wide outage")
+    void keywordEstimatesAffectedUsers() {
+        TriageResult r = new KeywordClassifier().classify("Wi-Fi is down in block A for everyone", categories, List.of());
+        assertTrue(r.affectedUsers() >= 100);
+    }
 }

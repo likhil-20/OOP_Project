@@ -1,6 +1,6 @@
 ---
 title: "I-ITSM: Intelligent IT Service Management System"
-author: "BITS Pilani Team"
+author: "Group 9"
 date: "November 2026"
 ---
 
@@ -33,8 +33,9 @@ Levels: HIGH = 3, MEDIUM = 2, LOW = 1. Affected users: fewer than 10 = 1, fewer 
 1. Effective impact = round(average of incident impact, service business criticality, affected-users level).
 2. Effective impact HIGH and urgency HIGH gives **P1**.
 3. Either one HIGH gives **P2**.
-4. Both LOW gives **P4**.
-5. Anything else gives **P3**.
+4. Both LOW gives **P5**.
+5. Both MEDIUM gives **P3**.
+6. One MEDIUM and one LOW gives **P4**.
 
 **Rationale.** It follows the ITIL impact × urgency matrix, but the impact also reflects how important the service is and how many people are affected. The rules are transparent, so users and auditors can see why a ticket got its priority. A rule-based method needs no training data.
 
@@ -46,6 +47,7 @@ Levels: HIGH = 3, MEDIUM = 2, LOW = 1. Affected users: fewer than 10 = 1, fewer 
 | P2 | 15 min | 2 h |
 | P3 | 1 h | 8 h |
 | P4 | 4 h | 24 h |
+| P5 | 8 h | 3 days |
 
 A background job warns the technician at 80% of a window and saves every violation. Missing a deadline also escalates the incident one priority level.
 
@@ -68,7 +70,7 @@ Patterns: **Strategy**, **Observer**, **Factory**, **Adapter**, **Repository**, 
 - **Known limitations:** the token is stored in `localStorage` (XSS risk); no HTTPS in the Docker setup; the lockout is in memory; the default JWT secret and seeded passwords must be changed in production; Gemini and Chrome speech recognition send data to Google.
 
 # 8. Testing
-36 documented test cases in `backend/TEST_CASES.md`: lifecycle, login lockout, assignment strategies, validation, priority, duplicates, role rules, SLA monitoring, AI triage and fallback, and authorization.
+39 documented test cases in `backend/TEST_CASES.md`: lifecycle, login lockout, assignment strategies, validation, priority, duplicates, role rules, SLA monitoring, AI triage and fallback, and authorization.
 
 # 9. Limitations and Future Work
 See `technology-report.md`.

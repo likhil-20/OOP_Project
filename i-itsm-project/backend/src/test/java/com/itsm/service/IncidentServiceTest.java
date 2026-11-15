@@ -84,9 +84,19 @@ class IncidentServiceTest {
     }
 
     @Test
-    @DisplayName("TC-21: Low impact + low urgency + 1 user = P4")
-    void priorityP4() {
+    @DisplayName("TC-21: Low impact + low urgency + 1 user = P5")
+    void priorityP5() {
         IncidentRequest req = new IncidentRequest("user1@x.com", "Network", "Mouse is not working", null, "LOW", "LOW", 1);
+
+        Incident inc = incidentService.reportIncident(req, user(1L, User.UserRole.EMPLOYEE));
+
+        assertEquals("P5", inc.getPriority());
+    }
+
+    @Test
+    @DisplayName("TC-38: Medium impact + low urgency + 1 user = P4")
+    void priorityP4() {
+        IncidentRequest req = new IncidentRequest("user1@x.com", "Network", "Mouse is not working", null, "MEDIUM", "LOW", 1);
 
         Incident inc = incidentService.reportIncident(req, user(1L, User.UserRole.EMPLOYEE));
 

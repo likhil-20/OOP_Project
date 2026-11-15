@@ -35,7 +35,7 @@ erDiagram
         bigint affected_service_id FK
         varchar impact
         varchar urgency
-        varchar priority "P1-P4"
+        varchar priority "P1-P5"
         varchar status
         bigint assigned_technician_id FK
         timestamp sla_response_deadline
@@ -144,7 +144,7 @@ CREATE TABLE incident_categories (
 
 CREATE TABLE sla_policies (
     id                  BIGSERIAL PRIMARY KEY,
-    priority            VARCHAR(255) NOT NULL UNIQUE,   -- P1..P4
+    priority            VARCHAR(255) NOT NULL UNIQUE,   -- P1..P5
     response_minutes    INTEGER NOT NULL,
     resolution_minutes  INTEGER NOT NULL
 );
@@ -240,7 +240,7 @@ CREATE TABLE notifications (
 | system_configurations | standalone | Key/value settings (`ASSIGNMENT_STRATEGY`) read when assigning technicians |
 
 Business rules stored in the data:
-   - Priority: effective impact = average of (incident impact, service criticality, affected-users level: <10 low, <100 medium, otherwise high). Effective impact HIGH and urgency HIGH gives P1. Either HIGH gives P2. Both LOW gives P4. Anything else gives P3.
+   - Priority: effective impact = average of (incident impact, service criticality, affected-users level: <10 low, <100 medium, otherwise high). Effective impact HIGH and urgency HIGH gives P1. Either HIGH gives P2. Both MEDIUM gives P3. One MEDIUM and one LOW gives P4. Both LOW gives P5.
    - Auto-escalation: `EscalationService` runs every 60 s and raises priority one step when the response or resolution SLA deadline is missed.
 - SLA deadlines are computed from `sla_policies` when the incident is created.
 - Lifecycle: NEW → CLASSIFIED → ASSIGNED → ACKNOWLEDGED → IN_PROGRESS → RESOLVED → VERIFIED → CLOSED (see `IncidentLifecycleManager`).

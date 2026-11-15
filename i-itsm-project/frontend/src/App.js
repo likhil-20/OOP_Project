@@ -19,8 +19,9 @@ function explainPriority(inc) {
   let rule;
   if (effective === 3 && urgency === 3) rule = 'Impact HIGH and urgency HIGH gives P1';
   else if (effective === 3 || urgency === 3) rule = 'Impact or urgency is HIGH gives P2';
-  else if (effective === 1 && urgency === 1) rule = 'Impact and urgency both LOW gives P4';
-  else rule = 'Everything else gives P3';
+  else if (effective === 1 && urgency === 1) rule = 'Impact and urgency both LOW gives P5';
+  else if (effective === 2 && urgency === 2) rule = 'Impact and urgency both MEDIUM gives P3';
+  else rule = 'One MEDIUM and one LOW gives P4';
   return `Impact ${LEVEL_NAME[impact]}, service ${LEVEL_NAME[service]}, ${inc.affectedUsers ?? 1} user(s) (${LEVEL_NAME[users]}), so effective impact is ${LEVEL_NAME[effective]}. Urgency ${LEVEL_NAME[urgency]}. ${rule}.`
     + (inc.escalated ? ' The system later escalated this ticket.' : '');
 }
@@ -443,7 +444,7 @@ const handleChangeRole = async (u, role) => {
           </div>
         </div>
       ) : (
-        <div style={{ maxWidth: '1400px', margin: '32px auto', padding: '0 24px', display: 'grid', gridTemplateColumns: '1fr 340px', gap: '32px' }}>
+        <div style={{ maxWidth: '1400px', margin: '32px auto', padding: '0 24px', display: 'grid', gridTemplateColumns: 'minmax(0, 1fr) 340px', gap: '32px' }}>
           <div>
             {/* EMPLOYEE PORTAL */}
             {user.role === 'EMPLOYEE' && (
@@ -462,6 +463,7 @@ const handleChangeRole = async (u, role) => {
                     <option value="P2">P2 - High</option>
                     <option value="P3">P3 - Medium</option>
                     <option value="P4">P4 - Low</option>
+                    <option value="P5">P5 - Minimal</option>
                   </select>
                   <select className="input-field" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ width: '140px' }}>
                     <option value="ALL">All Statuses</option>
@@ -568,6 +570,7 @@ const handleChangeRole = async (u, role) => {
                     <option value="P2">P2 - High</option>
                     <option value="P3">P3 - Medium</option>
                     <option value="P4">P4 - Low</option>
+                    <option value="P5">P5 - Minimal</option>
                   </select>
                   <select className="input-field" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ width: '140px' }}>
                     <option value="ALL">All Statuses</option>
@@ -743,6 +746,7 @@ const handleChangeRole = async (u, role) => {
                             <option value="P2">P2</option>
                             <option value="P3">P3</option>
                             <option value="P4">P4</option>
+                            <option value="P5">P5</option>
                           </select>
                           <select className="input-field" value={filterStatus} onChange={e => setFilterStatus(e.target.value)} style={{ width: '130px' }}>
                             <option value="ALL">All Statuses</option>
@@ -809,7 +813,7 @@ const handleChangeRole = async (u, role) => {
                     {adminTab === 'users' && (
                       <div>
                         <h3 className="section-title">Enterprise Directory</h3>
-                        <form onSubmit={handleCreateUser} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, 1fr) auto', gap: '12px', marginBottom: '24px', alignItems: 'center' }}>
+                        <form onSubmit={handleCreateUser} style={{ display: 'grid', gridTemplateColumns: 'repeat(5, minmax(0, 1fr)) auto', gap: '12px', marginBottom: '24px', alignItems: 'center' }}>
   <input type="text" className="input-field" placeholder="Name" maxLength={100} required value={newUser.name} onChange={e => setNewUser({ ...newUser, name: e.target.value })} />
   <input type="email" className="input-field" 	placeholder="Email" maxLength={150} required value={newUser.email} onChange={e => setNewUser({ ...newUser, email: e.target.value })} />
   <input type="password" className="input-field" placeholder="Password (min 6)" maxLength={100} required minLength={6} value={newUser.password} onChange={e => setNewUser({ ...newUser, password: e.target.value })} />
@@ -818,7 +822,7 @@ const handleChangeRole = async (u, role) => {
     <option value="EMPLOYEE">Employee</option>
     <option value="ADMINISTRATOR">Administrator</option>
   </select>
-  <input type="text" className="input-field" placeholder="New category name (e.g. Cloud)..." maxLength={50} disabled={newUser.role !== 'TECHNICIAN'} value={newUser.skills} onChange={e => setNewUser({ ...newUser, skills: e.target.value })} />
+  <input type="text" className="input-field" placeholder="Skills e.g. NETWORK,CLOUD" maxLength={255} disabled={newUser.role !== 'TECHNICIAN'} value={newUser.skills} onChange={e => setNewUser({ ...newUser, skills: e.target.value })} />
   <button type="submit" className="btn btn-primary">Add User</button>
 </form>
                         <table className="table-custom">
@@ -838,7 +842,7 @@ const handleChangeRole = async (u, role) => {
                                     <option value="ADMINISTRATOR">Administrator</option>
                                   </select>
                                 </td>
-                                <td className="muted">{u.skills || '-'}</td>
+                                <td className="muted">{u.skills ? u.skills.split(',').join(', ') : '-'}</td>
                                 <td>
                                   {u.approved ? <span className="pill pill-ok">Approved</span> : <span className="pill pill-pending">Pending</span>}
                                 </td>
@@ -1058,7 +1062,7 @@ const handleChangeRole = async (u, role) => {
 
           {/* Right Column: Notifications */}
           <div>
-            <div className="dashboard-card" style={{ position: 'sticky', top: '32px' }}>
+            <div className="dashboard-card" style={{ position: 'sticky', top: '32px', maxHeight: 'calc(100vh - 64px)', overflowY: 'auto' }}>
                   <div className="notif-head">
       <h3 style={{ fontSize: '16px', fontWeight: 700, margin: 0 }}>Notifications</h3>
       {notifications.filter(n => !n.read).length > 0 && (

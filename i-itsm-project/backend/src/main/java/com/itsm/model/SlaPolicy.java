@@ -13,7 +13,7 @@ public class SlaPolicy {
 
     @Column(unique = true, nullable = false)
     @NotBlank(message = "SLA priority is required.")
-    @Pattern(regexp = "P[1-4]", message = "SLA priority must be P1, P2, P3 or P4.")
+    @Pattern(regexp = "P[1-5]", message = "SLA priority must be P1, P2, P3, P4 or P5.")
     private String priority; // P1, P2, P3, P4
 
     @Min(value = 1, message = "Response minutes must be at least 1.")

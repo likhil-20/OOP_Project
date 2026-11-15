@@ -82,7 +82,7 @@ h1, h2, h3 { color: var(--text); }
   padding: var(--sp-5); margin-bottom: var(--sp-5); box-shadow: var(--shadow-sm);
 }
 .card-flush { padding: 0; overflow: hidden; }
-.tab-body { padding: var(--sp-5); }
+.tab-body { padding: var(--sp-5); overflow-x: auto; }
 .card-title { font-size: 16px; font-weight: 600; margin: 0 0 var(--sp-4); }
 .card-heading { font-size: 18px; font-weight: 700; margin: 0 0 20px; padding-bottom: var(--sp-3); border-bottom: 1px solid var(--border); }
 .section-title { font-size: 16px; font-weight: 700; margin: 0 0 var(--sp-4); }
@@ -162,7 +162,7 @@ html[data-theme="dark"] .btn-success, html[data-theme="dark"] .btn-danger, html[
 /* ============ TABLES ============ */
 .table-custom { width: 100%; border-collapse: collapse; }
 .table-custom th { text-align: left; padding: 10px 12px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); background: var(--surface-2); }
-.table-custom td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.table-custom td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: anywhere; }
 .table-custom tr:hover td { background: var(--surface-2); }
 
 /* ============ PILLS ============ */
@@ -171,6 +171,7 @@ html[data-theme="dark"] .btn-success, html[data-theme="dark"] .btn-danger, html[
 .pill-P2 { background: var(--warn-soft); color: var(--warn); }
 .pill-P3 { background: var(--info-soft); color: var(--accent); }
 .pill-P4 { background: var(--surface-2); color: var(--muted); border: 1px solid var(--border); }
+.pill-P5 { background: transparent; color: var(--muted); border: 1px dashed var(--border); }
 .pill-status { background: var(--surface-2); color: var(--text); font-weight: 500; border: 1px solid var(--border); }
 .pill-dup { background: var(--bad-soft); color: var(--bad); margin-left: 6px; }
 .pill-ok { background: var(--ok-soft); color: var(--ok); }
