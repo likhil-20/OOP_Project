@@ -77,4 +77,5 @@ Patterns: **Strategy**, **Observer**, **Factory**, **Adapter**, **Repository**, 
 - data.sql is skipped by Spring Boot for non-embedded databases; DataInitializer is the real seeder. Lombok is declared but unused.
 - Timestamps are stored without a time zone; the backend runs in Asia/Kolkata (TZ set in docker-compose.yml).
 - Test coverage does not yet include AdminService, EscalationService, the controller or frontend tests.
+
 See `technology-report.md`.
