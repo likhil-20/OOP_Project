@@ -52,7 +52,7 @@ public class ITSMController {
     private User currentUser(HttpServletRequest request) {
         return (User) request.getAttribute("authUser");
     }
-    // --- PAIR OF HELPER METHODS GO RIGHT HERE ---
+
     private String asText(Object obj) {
         return obj == null ? null : obj.toString();
     }

@@ -4,3 +4,4 @@ node_modules/
 .env
 target/
 backups/
+.env.local

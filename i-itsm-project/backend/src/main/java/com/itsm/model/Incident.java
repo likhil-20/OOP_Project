@@ -38,8 +38,8 @@ public class Incident {
     public Integer getAffectedUsers() { return affectedUsers; }
     public void setAffectedUsers(Integer affectedUsers) { this.affectedUsers = affectedUsers; }
 
-    private String priority; // P1, P2, P3, P4
-    private String status = "NEW"; // NEW, CLASSIFIED, ASSIGNED, ACKNOWLEDGED, IN_PROGRESS, RESOLVED, VERIFIED, CLOSED, ESCALATED
+    private String priority; // P1, P2, P3, P4, P5
+    private String status = "NEW"; // NEW, CLASSIFIED, ASSIGNED, ACKNOWLEDGED, IN_PROGRESS, RESOLVED, VERIFIED, CLOSED
 
     @ManyToOne
     @JoinColumn(name = "assigned_technician_id")
@@ -123,7 +123,7 @@ public class Incident {
     public void setEscalated(Boolean escalated) { this.escalated = escalated; }
     public LocalDateTime getEscalatedAt() { return escalatedAt; }
     public void setEscalatedAt(LocalDateTime escalatedAt) { this.escalatedAt = escalatedAt; }
-        public LocalDateTime getAcknowledgedAt() { return acknowledgedAt; }
+    public LocalDateTime getAcknowledgedAt() { return acknowledgedAt; }
     public void setAcknowledgedAt(LocalDateTime acknowledgedAt) { this.acknowledgedAt = acknowledgedAt; }
     public Boolean getResponseBreached() { return responseBreached; }
     public void setResponseBreached(Boolean responseBreached) { this.responseBreached = responseBreached; }
