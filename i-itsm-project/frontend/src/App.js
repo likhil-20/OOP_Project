@@ -6,6 +6,25 @@ import MissionControl from './MissionControl';
 
 const API = 'http://localhost:8080/api';
 
+const LEVEL = { HIGH: 3, MEDIUM: 2, LOW: 1 };
+const LEVEL_NAME = { 3: 'HIGH', 2: 'MEDIUM', 1: 'LOW' };
+
+// Same maths as IncidentService.calculatePriority, written as a sentence
+function explainPriority(inc) {
+  const impact = LEVEL[inc.impact] || 2;
+  const service = LEVEL[inc.affectedService?.businessCriticality] || 2;
+  const users = inc.affectedUsers == null || inc.affectedUsers < 10 ? 1 : inc.affectedUsers < 100 ? 2 : 3;
+  const urgency = LEVEL[inc.urgency] || 2;
+  const effective = Math.round((impact + service + users) / 3);
+  let rule;
+  if (effective === 3 && urgency === 3) rule = 'Impact HIGH and urgency HIGH gives P1';
+  else if (effective === 3 || urgency === 3) rule = 'Impact or urgency is HIGH gives P2';
+  else if (effective === 1 && urgency === 1) rule = 'Impact and urgency both LOW gives P4';
+  else rule = 'Everything else gives P3';
+  return `Impact ${LEVEL_NAME[impact]}, service ${LEVEL_NAME[service]}, ${inc.affectedUsers ?? 1} user(s) (${LEVEL_NAME[users]}), so effective impact is ${LEVEL_NAME[effective]}. Urgency ${LEVEL_NAME[urgency]}. ${rule}.`
+    + (inc.escalated ? ' The system later escalated this ticket.' : '');
+}
+
 function App() {
   const [user, setUser] = useState(null);
   const [dark, setDark] = useState(() => { try { return localStorage.getItem('theme') === 'dark'; } catch (e) { return false; } });
@@ -913,6 +932,7 @@ const handleChangeRole = async (u, role) => {
                           >
                             <option value="SKILL_BASED">Skill-Based Assignment</option>
                             <option value="LOAD_BASED">Load-Based Assignment</option>
+                            <option value="DEADLINE_AWARE">Deadline-Aware Assignment</option>
                           </select>
                           <p className="panel-hint">
                             Dynamically alters the algorithm used to route new incidents without system downtime. Active immediately.

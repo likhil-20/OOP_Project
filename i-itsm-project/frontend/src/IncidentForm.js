@@ -343,7 +343,7 @@ export default function IncidentForm({ user, categories, services, onSubmitted }
             {suggested.map((s, idx) => (
               <div key={idx} className="suggest-item">
                 <div><strong>Past Issue #{s.matchedIncidentId}:</strong> {s.pastDescription}</div>
-                <div className="suggest-res"><strong>Resolution:</strong> {s.resolutionDetails}</div>
+                <div className="suggest-res"><strong>Resolution:</strong> {s.resolutionDetails}{s.feedbackRating ? ` (rated ${s.feedbackRating}/5 by the employee)` : ''}</div>
               </div>
             ))}
           </div>

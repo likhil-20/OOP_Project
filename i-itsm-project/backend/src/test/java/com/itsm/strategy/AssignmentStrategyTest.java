@@ -5,7 +5,9 @@ import com.itsm.model.User;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 
@@ -58,5 +60,21 @@ class AssignmentStrategyTest {
         User chosen = new SkillBasedAssignment().assignTechnician(incident("HARDWARE"), List.of(t1, t2));
 
         assertEquals("T1", chosen.getName());
+    }
+
+    @Test
+    @DisplayName("TC-37: Deadline-aware strategy picks the technician whose nearest deadline is furthest away")
+    void deadlineAwarePicksMostRoom() {
+        User a = tech("A", "NETWORK", 1);
+        a.setId(1L);
+        User b = tech("B", "NETWORK", 1);
+        b.setId(2L);
+        Map<Long, LocalDateTime> deadlines = Map.of(
+            1L, LocalDateTime.now().plusMinutes(10),
+            2L, LocalDateTime.now().plusHours(5));
+
+        User chosen = new DeadlineAwareAssignment(deadlines).assignTechnician(incident("NETWORK"), List.of(a, b));
+
+        assertEquals("B", chosen.getName());
     }
 }

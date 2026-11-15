@@ -40,3 +40,4 @@ Run all tests: `cd i-itsm-project/backend` then `mvn test`
 | TC-34 | AuthInterceptorTest | Request without token | 401 |
 | TC-35 | AuthInterceptorTest | Employee calls /api/admin/users | 403 |
 | TC-36 | AuthInterceptorTest | Administrator calls /api/admin/users | Allowed |
+| TC-37 | AssignmentStrategyTest | Deadline-aware assignment, two skilled technicians | Technician with the furthest nearest-deadline chosen |

@@ -131,9 +131,14 @@ public class IncidentService {
         String strategyType = configRepository.findByConfigKey("ASSIGNMENT_STRATEGY")
             .map(SystemConfiguration::getConfigValue).orElse("SKILL_BASED");
 
-        AssignmentStrategy strategy = "LOAD_BASED".equals(strategyType)
-            ? new LoadBasedAssignment()
-            : new SkillBasedAssignment();
+        AssignmentStrategy strategy;
+        if ("LOAD_BASED".equals(strategyType)) {
+            strategy = new LoadBasedAssignment();
+        } else if ("DEADLINE_AWARE".equals(strategyType)) {
+            strategy = new DeadlineAwareAssignment(nearestDeadlineByTechnician());
+        } else {
+            strategy = new SkillBasedAssignment();
+        }
 
         List<User> techs = userRepository.findByRole(User.UserRole.TECHNICIAN);
         User assignedTech = strategy.assignTechnician(inc, techs);
@@ -160,6 +165,17 @@ public class IncidentService {
             }
         }
     }
+    // For each technician: the earliest resolution deadline among their open incidents
+    private Map<Long, LocalDateTime> nearestDeadlineByTechnician() {
+        Map<Long, LocalDateTime> result = new HashMap<>();
+        for (Incident open : incidentRepository.findOpen(Set.of("RESOLVED", "VERIFIED", "CLOSED"))) {
+            if (open.getAssignedTechnician() == null || open.getSlaResolutionDeadline() == null) continue;
+            result.merge(open.getAssignedTechnician().getId(), open.getSlaResolutionDeadline(),
+                (a, b) -> a.isBefore(b) ? a : b);
+        }
+        return result;
+    }
+
     // ---------- Priority calculation ----------
 
     private static int level(String v) {
@@ -205,6 +221,11 @@ public class IncidentService {
 
     // ---------- Suggested resolutions ----------
 
+    private static int ratingOf(Map<String, Object> m) {
+        Object r = m.get("feedbackRating");
+        return r == null ? 0 : (Integer) r;
+    }
+
     public List<Map<String, Object>> getSuggestedResolutions(String category, String description) {
         List<Incident> resolvedIncidents = incidentRepository.findTop200ByResolutionDetailsIsNotNullOrderByIdDesc().stream()
             .filter(i -> i.getResolutionDetails() != null && !i.getResolutionDetails().isEmpty())
@@ -229,10 +250,13 @@ public class IncidentService {
                 m.put("pastDescription", inc.getDescription());
                 m.put("category", inc.getCategory());
                 m.put("resolutionDetails", inc.getResolutionDetails());
-                if (suggestions.size() < 5) suggestions.add(m);
+                m.put("feedbackRating", inc.getFeedbackRating());
+                suggestions.add(m);
             }
         }
-        return suggestions;
+        // Best-rated fixes first (no rating counts as 0), then keep the top 5
+        suggestions.sort((x, y) -> Integer.compare(ratingOf(y), ratingOf(x)));
+        return suggestions.size() > 5 ? new ArrayList<>(suggestions.subList(0, 5)) : suggestions;
     }
 
         // ---------- Update status ----------

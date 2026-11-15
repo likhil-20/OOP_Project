@@ -13,7 +13,7 @@ import java.util.Set;
 @Service
 public class AdminService {
 
-    private static final Set<String> ASSIGNMENT_STRATEGIES = Set.of("SKILL_BASED", "LOAD_BASED");
+    private static final Set<String> ASSIGNMENT_STRATEGIES = Set.of("SKILL_BASED", "LOAD_BASED", "DEADLINE_AWARE");
 
     @Autowired private UserRepository userRepository;
     @Autowired private ItServiceRepository serviceRepository;
@@ -169,7 +169,7 @@ public class AdminService {
 
     public SystemConfiguration saveConfig(SystemConfiguration cfg) {
         if ("ASSIGNMENT_STRATEGY".equals(cfg.getConfigKey()) && !ASSIGNMENT_STRATEGIES.contains(cfg.getConfigValue())) {
-            throw new BadRequestException("Assignment strategy must be SKILL_BASED or LOAD_BASED.");
+            throw new BadRequestException("Assignment strategy must be SKILL_BASED, LOAD_BASED or DEADLINE_AWARE.");
         }
         SystemConfiguration existing = configRepository.findByConfigKey(cfg.getConfigKey())
             .orElse(new SystemConfiguration());
