@@ -162,11 +162,15 @@ html[data-theme="dark"] .btn-success, html[data-theme="dark"] .btn-danger, html[
 /* ============ TABLES ============ */
 .table-custom { width: 100%; border-collapse: collapse; }
 .table-custom th { text-align: left; padding: 10px 12px; font-size: 12px; font-weight: 600; color: var(--muted); text-transform: uppercase; letter-spacing: .04em; border-bottom: 1px solid var(--border); background: var(--surface-2); }
-.table-custom td { padding: 12px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: anywhere; }
+.table-custom td { padding: 12px 10px; border-bottom: 1px solid var(--border); vertical-align: top; overflow-wrap: break-word; }
 .table-custom tr:hover td { background: var(--surface-2); }
 /* Keep the ID column and buttons on one line */
 .table-custom td:first-child, .table-custom th:first-child { white-space: nowrap; }
 .table-custom .btn { white-space: nowrap; }
+/* Make wide tables (like Users) fit without sideways scrolling */
+.table-custom { font-size: 14px; }
+.table-custom select { max-width: 130px; padding: 6px 8px; font-size: 14px; }
+.table-custom .btn { padding: 6px 10px; font-size: 13px; }
 
 /* ============ PILLS ============ */
 .pill { display: inline-block; padding: 2px 8px; border-radius: 6px; font-size: 12px; font-weight: 600; white-space: nowrap; }

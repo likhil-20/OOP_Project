@@ -28,6 +28,10 @@ public class DataInitializer {
             createUser("employee@gmail.com", "John Employee", "emp123", User.UserRole.EMPLOYEE, null);
         }
 
+        createUserIfMissing("sarah.employee@gmail.com", "Sarah Employee", "emp123", User.UserRole.EMPLOYEE, null);
+        createUserIfMissing("rahul.employee@gmail.com", "Rahul Employee", "emp123", User.UserRole.EMPLOYEE, null);
+        createUserIfMissing("meera.employee@gmail.com", "Meera Employee", "emp123", User.UserRole.EMPLOYEE, null);
+
         User defaultAdmin = userRepository.findByEmail("admin@gmail.com").orElse(null);
         if (defaultAdmin == null) {
             createUser("admin@gmail.com", "System Admin", "admin123", User.UserRole.ADMINISTRATOR, null);
@@ -80,6 +84,12 @@ public class DataInitializer {
             configRepository.save(cfg);
         }
     }
+
+    private void createUserIfMissing(String email, String name, String password, User.UserRole role, String skills) {
+    if (userRepository.findByEmail(email).isEmpty()) {
+        createUser(email, name, password, role, skills);
+    }
+}
 
     private void createUser(String email, String name, String password, User.UserRole role, String skills) {
         User u = new User();
